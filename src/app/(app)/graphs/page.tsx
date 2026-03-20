@@ -1,0 +1,168 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { getHabits, getHabitCheckIns } from '@/lib/habits'
+import type { Habit, CheckIn } from '@/types'
+import HeatmapCalendar from '@/components/graphs/HeatmapCalendar'
+import TrendLine from '@/components/graphs/TrendLine'
+import CorrelationPanel from '@/components/graphs/CorrelationPanel'
+import { getCategoryColor } from '@/lib/utils'
+
+export default function GraphsPage() {
+  const supabase = createClient()
+  const [habits, setHabits] = useState<Habit[]>([])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [checkIns, setCheckIns] = useState<CheckIn[]>([])
+  const [allCheckIns, setAllCheckIns] = useState<Record<string, CheckIn[]>>({})
+  const [loading, setLoading] = useState(true)
+
+  const loadData = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const habitsData = await getHabits(supabase, user.id)
+    setHabits(habitsData)
+
+    if (habitsData.length > 0) {
+      const firstId = habitsData[0].id
+      setSelectedId(firstId)
+
+      const ciMap: Record<string, CheckIn[]> = {}
+      await Promise.all(habitsData.map(async (h) => {
+        ciMap[h.id] = await getHabitCheckIns(supabase, h.id)
+      }))
+      setAllCheckIns(ciMap)
+      setCheckIns(ciMap[firstId] ?? [])
+    }
+
+    setLoading(false)
+  }, [supabase])
+
+  useEffect(() => { loadData() }, [loadData])
+
+  function selectHabit(id: string) {
+    setSelectedId(id)
+    setCheckIns(allCheckIns[id] ?? [])
+  }
+
+  const selected = habits.find(h => h.id === selectedId)
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (habits.length === 0) {
+    return (
+      <div className="max-w-xl mx-auto px-4 pt-12 text-center">
+        <div className="text-5xl mb-4 opacity-40">· · ·</div>
+        <p className="font-display text-brand text-xl font-light mb-2">No habits to graph yet.</p>
+        <p className="text-muted text-sm">Start tracking to see your patterns emerge.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 pt-8 pb-6">
+      <h1 className="font-display text-brand font-light text-2xl mb-6">Your patterns</h1>
+
+      {/* Habit selector */}
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-1 -mx-1 px-1">
+        {habits.map(h => (
+          <button
+            key={h.id}
+            onClick={() => selectHabit(h.id)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-btn border text-sm flex-shrink-0 transition-all duration-150 ${
+              selectedId === h.id
+                ? 'border-accent bg-accent-light text-brand font-semibold'
+                : 'border-brand/15 text-muted hover:border-accent hover:text-brand'
+            }`}
+          >
+            <span className="text-base">{h.icon_emoji}</span>
+            <span className="truncate max-w-[120px]">{h.name}</span>
+          </button>
+        ))}
+      </div>
+
+      {selected && (
+        <div className="space-y-5">
+          {/* Heatmap */}
+          <div className="mirror-card p-5">
+            <p className="font-mono text-xs text-accent uppercase tracking-widest mb-4">Calendar heatmap</p>
+            <HeatmapCalendar checkIns={checkIns} months={6} />
+          </div>
+
+          {/* Trend line */}
+          {checkIns.length >= 5 && (
+            <div className="mirror-card p-5">
+              <p className="font-mono text-xs text-accent uppercase tracking-widest mb-4">Completion trend</p>
+              <TrendLine checkIns={checkIns} habitName={selected.name} />
+            </div>
+          )}
+
+          {/* Frequency by day of week */}
+          {checkIns.length >= 7 && (
+            <DayOfWeekChart checkIns={checkIns} />
+          )}
+
+          {/* Correlations */}
+          {Object.keys(allCheckIns).length > 1 && (
+            <CorrelationPanel
+              habits={habits}
+              allCheckIns={allCheckIns}
+              focusHabitId={selectedId!}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DayOfWeekChart({ checkIns }: { checkIns: CheckIn[] }) {
+  const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+  const counts = DAYS.map((_, i) => {
+    const dayCheckIns = checkIns.filter(ci => {
+      const d = new Date(ci.date)
+      return ((d.getDay() + 6) % 7) === i
+    })
+    const done = dayCheckIns.filter(c => c.status === 'done' || c.status === 'partial').length
+    const total = dayCheckIns.length
+    return { rate: total > 0 ? (done / total) * 100 : 0, total }
+  })
+
+  const max = Math.max(...counts.map(c => c.rate), 1)
+  const bestDay = counts.indexOf(counts.reduce((a, b) => a.rate > b.rate ? a : b))
+
+  return (
+    <div className="mirror-card p-5">
+      <p className="font-mono text-xs text-accent uppercase tracking-widest mb-4">Day of week</p>
+      <div className="flex items-end gap-2 h-16">
+        {counts.map((c, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+            <div
+              className="w-full rounded-sm transition-all duration-500"
+              style={{
+                height: `${Math.max((c.rate / max) * 52, 2)}px`,
+                background: i === bestDay ? '#6C63FF' : c.rate > 0 ? '#9B93E8' : '#F3F4F6',
+              }}
+            />
+            <span className={`text-[9px] font-mono ${i === bestDay ? 'text-brand font-semibold' : 'text-muted'}`}>
+              {DAYS[i]}
+            </span>
+          </div>
+        ))}
+      </div>
+      {max > 0 && (
+        <p className="text-xs text-muted mt-3">
+          Your strongest day is <strong className="text-brand">{DAYS[bestDay]}</strong> at {Math.round(counts[bestDay].rate)}%.
+        </p>
+      )}
+    </div>
+  )
+}
