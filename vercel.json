@@ -1,8 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/your-cron-route",
-      "schedule": "0 0 * * *"
+      "path": "/api/notifications/send",
+      "schedule": "* * * * *"
     }
   ]
 }
