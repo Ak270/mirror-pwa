@@ -19,12 +19,22 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { endpoint, p256dh, auth } = await request.json()
+  const { endpoint, p256dh, auth, source } = await request.json()
 
+  // Detect source if not provided
+  let subscriptionSource = source || 'browser'
+  
   const { error } = await supabase
     .from('notification_subscriptions')
     .upsert(
-      { user_id: user.id, endpoint, p256dh, auth },
+      { 
+        user_id: user.id, 
+        endpoint, 
+        p256dh, 
+        auth,
+        source: subscriptionSource,
+        last_verified_at: new Date().toISOString()
+      },
       { onConflict: 'endpoint' }
     )
 

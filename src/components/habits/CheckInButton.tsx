@@ -10,7 +10,7 @@ interface CheckInButtonProps {
   habitName: string
   categoryId: CategoryId
   currentStatus: CheckInStatus | null
-  onStatusChange: (status: CheckInStatus, quantifiable?: { value: number; unit: string }) => Promise<void>
+  onStatusChange: (status: CheckInStatus, quantifiable?: { value: number; unit: string }, slipNote?: string) => Promise<void>
   isLoading?: boolean
 }
 
@@ -24,8 +24,10 @@ export default function CheckInButton({
 }: CheckInButtonProps) {
   const [isLongPress, setIsLongPress] = useState(false)
   const [showQuantifiable, setShowQuantifiable] = useState(false)
+  const [showSlipNote, setShowSlipNote] = useState(false)
   const [quantValue, setQuantValue] = useState('')
   const [quantUnit, setQuantUnit] = useState('km')
+  const [slipNote, setSlipNote] = useState('')
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const labels = CHECK_IN_LABELS[categoryId]
 
@@ -45,6 +47,8 @@ export default function CheckInButton({
     setIsLongPress(false)
     if (status === 'done') {
       setShowQuantifiable(true)
+    } else if (status === 'honest_slip') {
+      setShowSlipNote(true)
     } else {
       await onStatusChange(status)
     }
@@ -65,6 +69,18 @@ export default function CheckInButton({
     onStatusChange('done')
     setShowQuantifiable(false)
     setQuantValue('')
+  }
+
+  async function handleSlipNoteSubmit() {
+    await onStatusChange('honest_slip', undefined, slipNote.trim() || undefined)
+    setShowSlipNote(false)
+    setSlipNote('')
+  }
+
+  function handleSkipSlipNote() {
+    onStatusChange('honest_slip')
+    setShowSlipNote(false)
+    setSlipNote('')
   }
 
   return (
@@ -93,6 +109,40 @@ export default function CheckInButton({
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Slip note bottom sheet */}
+      {showSlipNote && (
+        <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50" onClick={() => setShowSlipNote(false)}>
+          <div className="bg-white rounded-t-card shadow-hover max-w-lg w-full p-6 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-brand mb-1">Why did you slip?</h3>
+            <p className="text-sm text-muted mb-4">Optional — helps you see patterns later.</p>
+            
+            <textarea
+              value={slipNote}
+              onChange={(e) => setSlipNote(e.target.value)}
+              placeholder="I was tired... I forgot... I chose not to..."
+              className="w-full mirror-input min-h-[100px] resize-none mb-4"
+              maxLength={200}
+              autoFocus
+            />
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleSkipSlipNote}
+                className="flex-1 mirror-btn-secondary text-sm py-2.5"
+              >
+                Skip
+              </button>
+              <button
+                onClick={handleSlipNoteSubmit}
+                className="flex-1 mirror-btn-primary text-sm py-2.5"
+              >
+                Log slip
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -57,42 +57,70 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   if (!event.data) return
 
-  let data = {}
-  try { data = event.data.json() } catch { data = { title: 'Mirror', body: event.data.text() } }
-
-  const { title = 'Mirror', body = '', icon = '/icons/icon-192.svg', badge = '/icons/badge-72.svg', url = '/log', tag = 'mirror' } = data
-
+  const data = event.data.json()
+  const options = {
+    body: data.body || 'Time to check in',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/badge-72.png',
+    tag: data.tag || 'mirror-notification',
+    data: data.data || data,
+    actions: data.actions || [],
+    renotify: data.renotify || false,
+  }
+  
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      icon,
-      badge,
-      tag,
-      data: { url },
-      actions: [
-        { action: 'open', title: 'Open Mirror' },
-        { action: 'dismiss', title: 'Dismiss' },
-      ],
-    })
+    self.registration.showNotification(data.title || 'Mirror', options)
   )
 })
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-
-  if (event.action === 'dismiss') return
-
-  const url = event.notification.data?.url ?? '/log'
-
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      for (const client of windowClients) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
-          client.navigate(url)
-          return client.focus()
+  
+  const urlToOpen = event.notification.data?.url || '/log'
+  
+  // Handle action buttons
+  if (event.action === 'done') {
+    // TODO: Could POST to /api/habits/checkin with API token from notification data
+    // For now, just open to log page
+    event.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        for (const client of clientList) {
+          if ('focus' in client) {
+            return client.focus().then(() => client.navigate(urlToOpen))
+          }
         }
-      }
-      return clients.openWindow(url)
-    })
-  )
+        if (clients.openWindow) {
+          return clients.openWindow(urlToOpen)
+        }
+      })
+    )
+  } else {
+    // Default action or 'open' action
+    event.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        for (const client of clientList) {
+          if ('focus' in client) {
+            return client.focus().then(() => client.navigate(urlToOpen))
+          }
+        }
+        if (clients.openWindow) {
+          return clients.openWindow(urlToOpen)
+        }
+      })
+    )
+  }
+})
+
+// Widget event handlers for Android PWA widgets
+self.addEventListener('widgetinstall', (event) => {
+  console.log('Widget installed:', event.widget)
+})
+
+self.addEventListener('widgetuninstall', (event) => {
+  console.log('Widget uninstalled:', event.widget)
+})
+
+self.addEventListener('widgetresume', (event) => {
+  console.log('Widget resumed:', event.widget)
+  // Widget data will be fetched from /api/habits/widget automatically
 })

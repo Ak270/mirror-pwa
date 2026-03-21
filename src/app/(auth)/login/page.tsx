@@ -51,11 +51,15 @@ export default function LoginPage() {
 
   async function handleAnonymous() {
     setLoading(true)
-    const { error } = await supabase.auth.signInAnonymously()
+    const { data, error } = await supabase.auth.signInAnonymously()
     if (error) {
       setMessage({ type: 'error', text: error.message })
       setLoading(false)
     } else {
+      // Store anonymous user creation timestamp for 7-day trial tracking
+      if (data.user) {
+        localStorage.setItem('mirror_anon_created_at', new Date().toISOString())
+      }
       router.push('/onboarding')
       router.refresh()
     }

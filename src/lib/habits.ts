@@ -96,6 +96,7 @@ export async function logCheckIn(
     note?: string | null
     quantifiable_value?: number | null
     quantifiable_unit?: string | null
+    slip_note?: string | null
   }
 ): Promise<{ data: CheckIn | null; error: Error | null }> {
   const date = format(new Date(), 'yyyy-MM-dd')
@@ -110,6 +111,7 @@ export async function logCheckIn(
       note: options?.note ?? null,
       quantifiable_value: options?.quantifiable_value ?? null,
       quantifiable_unit: options?.quantifiable_unit ?? null,
+      slip_note: options?.slip_note ?? null,
     }, { onConflict: 'habit_id,date' })
     .select()
     .single()

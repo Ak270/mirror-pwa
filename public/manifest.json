@@ -18,5 +18,24 @@
     { "src": "/icons/icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
   ],
   "categories": ["lifestyle", "health", "productivity"],
-  "prefer_related_applications": false
+  "prefer_related_applications": false,
+  "widgets": [
+    {
+      "name": "Mirror Habits",
+      "description": "View and track your daily habits",
+      "tag": "mirror-habits",
+      "template": "widget-template",
+      "ms_ac_template": "/widget-template.json",
+      "data": "/api/habits/widget",
+      "type": "application/json",
+      "screenshots": [
+        {
+          "src": "/icons/icon-192.svg",
+          "sizes": "192x192",
+          "label": "Mirror widget preview"
+        }
+      ],
+      "update": 900
+    }
+  ]
 }

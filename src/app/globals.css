@@ -22,6 +22,23 @@
   --radius-sm: 8px;
 }
 
+.dark {
+  --color-brand: #E8E8F5;
+  --color-accent: #A89BF0;
+  --color-accent-light: #2D2D4A;
+  --color-success: #6FCF73;
+  --color-success-light: #1A3A2E;
+  --color-slip: #FFB84D;
+  --color-slip-light: #3A2E1A;
+  --color-skip: #9CA3AF;
+  --color-surface: #1A1A2E;
+  --color-text: #F0F0F8;
+  --color-muted: #9CA3AF;
+  --color-border: rgba(232, 232, 245, 0.12);
+  --shadow-card: 0 2px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(232, 232, 245, 0.06);
+  --shadow-hover: 0 8px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(232, 232, 245, 0.1);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -32,9 +49,13 @@ html {
 }
 
 body {
-  background: #FAFAFA;
-  color: #111111;
-  line-height: 1.6;
+  color: var(--color-text);
+  background: linear-gradient(135deg, #FAFAFA 0%, #F0F0F8 100%);
+  min-height: 100vh;
+}
+
+.dark body {
+  background: linear-gradient(135deg, #0F0F1E 0%, #1A1A2E 100%);
 }
 
 /* Scrollbar */

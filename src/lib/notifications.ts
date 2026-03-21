@@ -60,28 +60,95 @@ export function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
 }
 
 export const NOTIFICATION_COPY = {
-  daily_reminder: {
-    title: 'Mirror',
-    body: "Mirror is waiting when you're ready.",
+  // Daily reminder variations based on time and context
+  daily_reminder: (timeOfDay: 'morning' | 'afternoon' | 'evening', habitCount: number) => {
+    const variations = {
+      morning: [
+        "Morning. Mirror is here when you're ready.",
+        `${habitCount} habit${habitCount !== 1 ? 's' : ''} waiting. No rush.`,
+        "Today is still open.",
+      ],
+      afternoon: [
+        "Afternoon check-in. Mirror is waiting.",
+        `${habitCount} habit${habitCount !== 1 ? 's' : ''} to log. You have time.`,
+        "Mirror is here. Log when ready.",
+      ],
+      evening: [
+        "Evening. Tonight is still today.",
+        `${habitCount} habit${habitCount !== 1 ? 's' : ''} left. You can still show up.`,
+        "Mirror is waiting. No judgment.",
+      ],
+    }
+    const options = variations[timeOfDay]
+    return {
+      title: 'Mirror',
+      body: options[Math.floor(Math.random() * options.length)],
+    }
   },
-  streak_at_risk: (streakDays: number) => ({
+  
+  // Streak at risk - gentle reminder without pressure
+  streak_at_risk: (streakDays: number, habitName: string) => ({
     title: 'Mirror',
-    body: `${streakDays} days in a row. Tonight is still today.`,
+    body: `${streakDays} days of ${habitName.toLowerCase()}. Tonight is still today.`,
   }),
-  streak_milestone: (days: number, habitName: string) => ({
-    title: 'Mirror 🔥',
-    body: `${days} days of ${habitName.toLowerCase()}. You are becoming this.`,
-  }),
+  
+  // Streak milestone - identity-affirming
+  streak_milestone: (days: number, habitName: string) => {
+    const milestones = {
+      7: `A week of ${habitName.toLowerCase()}. You are becoming this.`,
+      14: `Two weeks of ${habitName.toLowerCase()}. This is who you are now.`,
+      30: `30 days of ${habitName.toLowerCase()}. You are this person.`,
+      60: `60 days of ${habitName.toLowerCase()}. Identity shift complete.`,
+      90: `90 days of ${habitName.toLowerCase()}. This is just what you do.`,
+      100: `100 days of ${habitName.toLowerCase()}. Unstoppable.`,
+    }
+    return {
+      title: 'Mirror 🔥',
+      body: milestones[days as keyof typeof milestones] || `${days} days of ${habitName.toLowerCase()}. Keep going.`,
+    }
+  },
+  
+  // Weekly reflection
   week_reflection: {
     title: 'Mirror',
     body: 'Sunday reflection — 2 minutes for yourself.',
   },
-  habit_slip: {
+  
+  // After a slip - compassionate
+  habit_slip: (habitName: string) => ({
     title: 'Mirror',
-    body: 'Yesterday was yesterday. Today is a new day.',
+    body: `Yesterday's ${habitName.toLowerCase()} is yesterday. Today is new.`,
+  }),
+  
+  // Long absence - welcoming, no guilt
+  long_absence: (daysSince: number) => {
+    if (daysSince <= 3) {
+      return {
+        title: 'Mirror',
+        body: 'Mirror is here. No questions asked.',
+      }
+    } else if (daysSince <= 7) {
+      return {
+        title: 'Mirror',
+        body: 'Welcome back. Start where you are.',
+      }
+    } else {
+      return {
+        title: 'Mirror',
+        body: 'Mirror missed you. Today is a good day to return.',
+      }
+    }
   },
-  long_absence: {
-    title: 'Mirror',
-    body: 'Mirror missed you. No questions asked.',
-  },
+  
+  // Correlation insight teaser
+  correlation_teaser: (habit1: string, habit2: string) => ({
+    title: 'Mirror Insight',
+    body: `${habit1} and ${habit2} might be connected. Check graphs.`,
+  }),
+  
+  // Habit stacking suggestion
+  habit_stacking: (existingHabit: string, suggestedHabit: string) => ({
+    title: 'Mirror Suggestion',
+    body: `After ${existingHabit.toLowerCase()}, try ${suggestedHabit.toLowerCase()}.`,
+  }),
 }

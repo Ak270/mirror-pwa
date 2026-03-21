@@ -1,41 +1,40 @@
-import Anthropic from '@anthropic-ai/sdk'
-import { SYSTEM_IDENTITY } from './prompts'
+import { groq, GROQ_MODEL, isRateLimited } from './groq'
 import { sanitizeCopy } from '@/lib/utils'
 
-let _client: Anthropic | null = null
-
-function getClient(): Anthropic {
-  if (!_client) {
-    _client = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    })
-  }
-  return _client
-}
-
 export async function callMirrorAI<T>(
-  prompt: string,
+  systemPrompt: string,
+  userPrompt: string,
   input: Record<string, unknown>,
-  fallback: T
+  fallback: T,
+  userId?: string,
+  rateLimitType?: 'checkin' | 'insight'
 ): Promise<T> {
   try {
-    const client = getClient()
-    const message = await client.messages.create({
-      model: 'claude-3-5-haiku-20241022',
-      max_tokens: 300,
-      system: SYSTEM_IDENTITY,
+    // Check rate limit if userId provided
+    if (userId && rateLimitType && isRateLimited(userId, rateLimitType)) {
+      return fallback
+    }
+
+    const completion = await groq.chat.completions.create({
+      model: GROQ_MODEL,
       messages: [
         {
+          role: 'system',
+          content: systemPrompt,
+        },
+        {
           role: 'user',
-          content: `${prompt}\n\nInput: ${JSON.stringify(input)}\n\nReturn only valid JSON matching the output_format.`,
+          content: `${userPrompt}\n\nInput: ${JSON.stringify(input)}\n\nReturn only valid JSON.`,
         },
       ],
+      temperature: 0.7,
+      max_tokens: 300,
+      response_format: { type: 'json_object' },
     })
 
-    const content = message.content[0]
-    if (content.type !== 'text') return fallback
+    const text = completion.choices[0]?.message?.content?.trim()
+    if (!text) return fallback
 
-    const text = content.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
     const parsed = JSON.parse(text) as T
 
     // Sanitize any string values in the response
@@ -57,47 +56,75 @@ export async function getCheckInConfirmation(
   habitName: string,
   status: string,
   currentStreak: number,
-  categoryId: string
-): Promise<{ headline: string; subtext: string }> {
-  const FALLBACKS: Record<string, { headline: string; subtext: string }> = {
-    done: { headline: 'You showed up today.', subtext: 'One more day.' },
-    partial: { headline: 'You did something.', subtext: 'That counts.' },
-    skip: { headline: 'Not today.', subtext: 'Tomorrow is open.' },
-    honest_slip: { headline: 'Yesterday was yesterday.', subtext: 'Today is a new day.' },
+  categoryId: string,
+  userId?: string
+): Promise<{ headline: string }> {
+  const FALLBACKS: Record<string, { headline: string }> = {
+    done: { headline: 'You showed up today.' },
+    partial: { headline: 'You did something.' },
+    skip: { headline: 'Not today.' },
+    honest_slip: { headline: 'Yesterday was yesterday.' },
   }
 
-  const { CHECK_IN_CONFIRMATION_PROMPT } = await import('./prompts')
+  const SYSTEM_PROMPT = "You are Mirror's warm, non-judgmental companion. You respond to habit check-ins with a single short sentence (max 12 words). Never use generic praise like 'great job' or 'well done'. For slips, be compassionate not consoling — acknowledge the moment without dramatizing it. For streaks, be genuine not hype. No emojis. Vary your phrasing every time."
+  
+  const USER_PROMPT = `User logged habit '${habitName}' with status '${status}'. Current streak: ${currentStreak} days. Category: ${categoryId}. Reply with one warm sentence.`
+
   return callMirrorAI(
-    CHECK_IN_CONFIRMATION_PROMPT,
+    SYSTEM_PROMPT,
+    USER_PROMPT,
     { habit_name: habitName, status, current_streak: currentStreak, category_id: categoryId },
-    FALLBACKS[status] ?? FALLBACKS.done
+    FALLBACKS[status] ?? FALLBACKS.done,
+    userId,
+    'checkin'
   )
 }
 
 export async function getDailyInsight(
   completedHabits: string[],
   missedHabits: string[],
-  longestStreak: number
+  skippedHabits: string[],
+  totalHabits: number,
+  topHabit: string,
+  userId?: string
 ): Promise<{ insight: string }> {
-  const { DAILY_INSIGHT_PROMPT } = await import('./prompts')
+  const SYSTEM_PROMPT = "You are Mirror's daily insight engine. Analyze the user's habit data and generate one honest, warm, non-judgmental insight (2 sentences max). Focus on patterns, not scores. Never mention streaks as achievements. If the user has slips, acknowledge them as human. Tone: like a thoughtful friend who notices things."
+  
+  const patternSummary = completedHabits.length > 0 
+    ? `Completed ${completedHabits.length} habits today`
+    : missedHabits.length > 0
+    ? `${missedHabits.length} habits not logged yet`
+    : 'Quiet day'
+  
+  const USER_PROMPT = `Today's habits: ${completedHabits.length} completed, ${missedHabits.length} slips, ${skippedHabits.length} skipped out of ${totalHabits} total. Top habit: '${topHabit}'. Recent pattern: ${patternSummary}. Generate a daily insight.`
+
   return callMirrorAI(
-    DAILY_INSIGHT_PROMPT,
+    SYSTEM_PROMPT,
+    USER_PROMPT,
     {
-      completed_habits: completedHabits,
-      missed_habits: missedHabits,
-      current_date: new Date().toISOString().split('T')[0],
-      longest_streak: longestStreak,
+      completed: completedHabits.length,
+      slipped: missedHabits.length,
+      skipped: skippedHabits.length,
+      total: totalHabits,
+      top_habit: topHabit,
+      pattern_summary: patternSummary,
     },
-    { insight: 'Another day.' }
+    { insight: 'Another day.' },
+    userId,
+    'insight'
   )
 }
 
 export async function getReflectionPrompt(
   habitsSummary: { name: string; rate: number }[]
 ): Promise<{ prompt: string }> {
-  const { REFLECTION_PROMPT_GENERATOR } = await import('./prompts')
+  const SYSTEM_PROMPT = "You are Mirror's reflection guide. Generate thoughtful weekly reflection questions that invite honest self-reflection. Keep questions open-ended and non-analytical. Avoid 'Did you...' questions. Max 15 words."
+  
+  const USER_PROMPT = `Generate a weekly reflection question based on this week's habit summary.`
+
   return callMirrorAI(
-    REFLECTION_PROMPT_GENERATOR,
+    SYSTEM_PROMPT,
+    USER_PROMPT,
     { week_summary: habitsSummary },
     { prompt: 'What showed up for you this week?' }
   )

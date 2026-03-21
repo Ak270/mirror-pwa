@@ -110,12 +110,48 @@ export default function GraphsPage() {
           )}
 
           {/* Correlations */}
-          {Object.keys(allCheckIns).length > 1 && (
-            <CorrelationPanel
-              habits={habits}
-              allCheckIns={allCheckIns}
-              focusHabitId={selectedId!}
-            />
+          {habits.length >= 2 && (
+            <div className="mt-6">
+              {/* Check if user has enough data (30+ days) */}
+              {(() => {
+                const totalDays = Object.values(allCheckIns).reduce((sum, cis) => sum + cis.length, 0)
+                const hasEnoughData = totalDays >= 30
+                
+                if (hasEnoughData) {
+                  return <CorrelationPanel habits={habits} allCheckIns={allCheckIns} focusHabitId={selectedId!} />
+                } else {
+                  // Correlation teaser
+                  const daysLeft = Math.max(0, 30 - totalDays)
+                  return (
+                    <div className="mirror-card p-5 bg-accent-light border border-accent/20">
+                      <div className="flex items-start gap-3">
+                        <div className="text-2xl">🔗</div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-brand text-sm mb-1">
+                            Correlation Insights
+                          </h3>
+                          <p className="text-xs text-muted mb-3">
+                            Keep tracking for {daysLeft} more day{daysLeft !== 1 ? 's' : ''} to unlock habit correlation insights. 
+                            Mirror will show you which habits influence each other.
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 bg-surface rounded-full h-2 overflow-hidden">
+                              <div 
+                                className="bg-accent h-full transition-all duration-300"
+                                style={{ width: `${Math.min(100, (totalDays / 30) * 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-mono text-muted">
+                              {totalDays}/30
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
+              })()}
+            </div>
           )}
         </div>
       )}

@@ -20,10 +20,27 @@ export default function ProfilePage() {
   const [copied, setCopied] = useState(false)
   const [testingNotif, setTestingNotif] = useState(false)
   const [testResult, setTestResult] = useState<string | null>(null)
+  const [isAnonymous, setIsAnonymous] = useState(false)
+  const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null)
+  const [upgrading, setUpgrading] = useState(false)
 
   const loadProfile = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+    
+    // Check if user is anonymous
+    setIsAnonymous(user.is_anonymous || false)
+    if (user.is_anonymous) {
+      const createdAt = localStorage.getItem('mirror_anon_created_at')
+      if (createdAt) {
+        const created = new Date(createdAt)
+        const now = new Date()
+        const daysPassed = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24))
+        const daysLeft = Math.max(0, 7 - daysPassed)
+        setTrialDaysLeft(daysLeft)
+      }
+    }
+    
     const p = await getProfile(supabase, user.id)
     setProfile(p)
     setDisplayName(p?.display_name ?? '')
@@ -101,9 +118,43 @@ export default function ProfilePage() {
     router.refresh()
   }
 
+  async function handleUpgradeAccount() {
+    setUpgrading(true)
+    // Redirect to login page to create permanent account
+    // The migration will happen after they sign up
+    router.push('/login?upgrade=true')
+  }
+
   return (
     <div className="max-w-xl mx-auto px-4 pt-8 pb-6">
       <h1 className="font-display text-brand font-light text-2xl mb-6">Settings</h1>
+
+      {/* Trial upgrade banner for anonymous users */}
+      {isAnonymous && (
+        <div className="mirror-card p-5 mb-4 bg-accent-light border-2 border-accent/40">
+          <div className="flex items-center gap-2 mb-3">
+            <User className="w-4 h-4 text-accent" />
+            <h2 className="font-semibold text-brand text-sm">Upgrade Your Account</h2>
+            {trialDaysLeft !== null && trialDaysLeft > 0 && (
+              <span className="ml-auto text-xs font-mono bg-accent/20 text-accent px-2 py-0.5 rounded-full">
+                {trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''} left
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-muted mb-4">
+            {trialDaysLeft !== null && trialDaysLeft > 0
+              ? 'Create a permanent account to keep your data forever. All your habits and progress will be migrated automatically.'
+              : 'Your trial has ended. Create an account now to keep all your progress.'}
+          </p>
+          <button
+            onClick={handleUpgradeAccount}
+            disabled={upgrading}
+            className="mirror-btn-primary w-full disabled:opacity-60"
+          >
+            {upgrading ? 'Redirecting...' : 'Create Account'}
+          </button>
+        </div>
+      )}
 
       {/* Profile */}
       <div className="mirror-card p-5 mb-4">
@@ -269,6 +320,45 @@ export default function ProfilePage() {
               <p className="text-[11px] text-muted mt-1">
                 Endpoint: <code className="font-mono">/api/habits/today?token=YOUR_TOKEN</code>
               </p>
+            </div>
+          )}
+
+          {/* Widget Setup */}
+          {accessToken && (
+            <div className="pt-3 border-t border-brand/10">
+              <p className="text-sm font-semibold text-brand mb-3">📱 Home Screen Widgets</p>
+              
+              {/* iOS Widget */}
+              <div className="mb-4">
+                <p className="text-xs font-semibold text-brand mb-2">iOS Widget (Scriptable)</p>
+                <ol className="text-xs text-muted space-y-1.5 list-decimal list-inside mb-2">
+                  <li>Install the free "Scriptable" app from App Store</li>
+                  <li>Download the widget script: <a href="/MirrorWidget.js" className="text-accent underline" download>MirrorWidget.js</a></li>
+                  <li>Open Scriptable, tap +, paste the script</li>
+                  <li>Edit line 5: Replace <code className="font-mono text-[10px]">YOUR_API_TOKEN_HERE</code> with your token above</li>
+                  <li>Edit line 6: Replace URL with your Mirror app URL</li>
+                  <li>Save, then add Scriptable widget to home screen</li>
+                  <li>Long-press widget → Edit Widget → choose "MirrorWidget"</li>
+                </ol>
+                <p className="text-[10px] text-muted italic">
+                  Widget updates every 15 minutes and shows your daily progress.
+                </p>
+              </div>
+
+              {/* Android Widget */}
+              <div>
+                <p className="text-xs font-semibold text-brand mb-2">Android Widget (Chrome 120+)</p>
+                <ol className="text-xs text-muted space-y-1.5 list-decimal list-inside mb-2">
+                  <li>Install Mirror as PWA (see instructions above)</li>
+                  <li>Long-press on home screen → Widgets</li>
+                  <li>Find "Mirror Habits" in widget list</li>
+                  <li>Drag to home screen</li>
+                  <li>Widget will auto-update with your habits</li>
+                </ol>
+                <p className="text-[10px] text-muted italic">
+                  Requires Chrome 120+ on Android. Widget syncs automatically.
+                </p>
+              </div>
             </div>
           )}
         </div>

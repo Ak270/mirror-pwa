@@ -36,11 +36,29 @@ export async function GET() {
 
   const habitList = habits ?? []
   const ciList = checkIns ?? []
-  const loggedIds = new Set(ciList.map((c: { habit_id: string }) => c.habit_id))
+  const loggedIds = new Set(ciList.map((c: { habit_id: string; status: string }) => c.habit_id))
+  
+  const completedStatuses = new Set(['done', 'partial'])
+  const slipStatuses = new Set(['honest_slip'])
+  const skipStatuses = new Set(['skip'])
 
-  const completed = habitList.filter(h => loggedIds.has(h.id)).map(h => h.name)
-  const missed = habitList.filter(h => !loggedIds.has(h.id)).map(h => h.name)
+  const completed = habitList.filter(h => {
+    const ci = ciList.find((c: { habit_id: string }) => c.habit_id === h.id)
+    return ci && completedStatuses.has(ci.status)
+  }).map(h => h.name)
+  
+  const slipped = habitList.filter(h => {
+    const ci = ciList.find((c: { habit_id: string }) => c.habit_id === h.id)
+    return ci && slipStatuses.has(ci.status)
+  }).map(h => h.name)
+  
+  const skipped = habitList.filter(h => {
+    const ci = ciList.find((c: { habit_id: string }) => c.habit_id === h.id)
+    return ci && skipStatuses.has(ci.status)
+  }).map(h => h.name)
 
-  const result = await getDailyInsight(completed, missed, 0)
+  const topHabit = completed[0] || habitList[0]?.name || 'your habits'
+
+  const result = await getDailyInsight(completed, slipped, skipped, habitList.length, topHabit, user.id)
   return NextResponse.json(result)
 }

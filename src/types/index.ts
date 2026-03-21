@@ -26,6 +26,7 @@ export interface Habit {
   goal_unit: string | null
   frequency: HabitFrequency
   reminder_time: string | null
+  display_type: 'binary' | 'counter' | 'streak'
   is_vault: boolean
   archived: boolean
   created_at: string

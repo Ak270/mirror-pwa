@@ -78,22 +78,108 @@ export async function POST(request: NextRequest) {
 
       if (!subscription) continue
 
-      const message = minutesUntil === 0 
-        ? `Time for ${habit.name}`
-        : `${habit.name} in ${minutesUntil} minutes`
+      // Skip stale subscriptions (not verified in last 7 days)
+      const lastVerified = subscription.last_verified_at ? new Date(subscription.last_verified_at) : null
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      if (lastVerified && lastVerified < sevenDaysAgo) {
+        continue // Skip stale subscription
+      }
 
-      await webpush.sendNotification(
-        { endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } },
-        JSON.stringify({
-          title: 'Mirror Reminder',
-          body: message,
-          icon: '/icons/icon-192.svg',
-          badge: '/icons/badge-72.svg',
-          url: '/log',
-          tag: `habit-reminder-${habit.id}`,
-        })
-      )
-      sent++
+      // Determine time of day for context-aware messaging
+      const timeOfDay = currentHour < 12 ? 'morning' : currentHour < 17 ? 'afternoon' : 'evening'
+      
+      // Get user's total unlogged habits for context
+      const { data: allUserHabits } = await supabase
+        .from('habits')
+        .select('id')
+        .eq('user_id', habit.user_id)
+        .eq('archived', false)
+      
+      const { data: todayCheckIns } = await supabase
+        .from('check_ins')
+        .select('habit_id')
+        .eq('user_id', habit.user_id)
+        .eq('date', today)
+      
+      const loggedHabitIds = new Set(todayCheckIns?.map(ci => ci.habit_id) || [])
+      const unloggedCount = (allUserHabits?.length || 1) - loggedHabitIds.size
+      
+      // Check for streak data to send streak-at-risk notification
+      const { data: recentCheckIns } = await supabase
+        .from('check_ins')
+        .select('date, status')
+        .eq('habit_id', habit.id)
+        .gte('date', new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0])
+        .order('date', { ascending: false })
+        .limit(30)
+      
+      let currentStreak = 0
+      if (recentCheckIns && recentCheckIns.length > 0) {
+        for (let i = 0; i < recentCheckIns.length; i++) {
+          const checkDate = new Date(recentCheckIns[i].date)
+          const expectedDate = new Date(Date.now() - (i + 1) * 86400000)
+          const dayDiff = Math.floor((expectedDate.getTime() - checkDate.getTime()) / 86400000)
+          
+          if (dayDiff <= 1 && ['done', 'partial'].includes(recentCheckIns[i].status)) {
+            currentStreak++
+          } else {
+            break
+          }
+        }
+      }
+      
+      // Use smart notification copy
+      const { NOTIFICATION_COPY } = await import('@/lib/notifications')
+      let notificationContent
+      
+      if (currentStreak >= 7 && minutesUntil === 0) {
+        // Streak at risk notification
+        notificationContent = NOTIFICATION_COPY.streak_at_risk(currentStreak, habit.name)
+      } else if (minutesUntil === 0) {
+        // Daily reminder with context
+        notificationContent = NOTIFICATION_COPY.daily_reminder(timeOfDay, unloggedCount)
+      } else {
+        // Time-based reminder
+        notificationContent = {
+          title: 'Mirror',
+          body: `${habit.name} in ${minutesUntil} minutes`,
+        }
+      }
+
+      try {
+        await webpush.sendNotification(
+          { endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } },
+          JSON.stringify({
+            title: notificationContent.title,
+            body: notificationContent.body,
+            icon: '/icons/icon-192.png',
+            badge: '/icons/badge-72.png',
+            data: {
+              url: `/log?habit_id=${habit.id}`,
+              habit_id: habit.id,
+              habit_name: habit.name
+            },
+            actions: [
+              { action: 'done', title: '✓ Done' },
+              { action: 'open', title: 'Open Mirror' }
+            ],
+            tag: `habit-reminder-${habit.id}`,
+            renotify: true
+          })
+        )
+        
+        // Update last_verified_at on successful send
+        await supabase
+          .from('notification_subscriptions')
+          .update({ last_verified_at: new Date().toISOString() })
+          .eq('id', subscription.id)
+        
+        sent++
+      } catch (notifErr) {
+        // Notification failed, don't update verified timestamp
+        const errStr = String(notifErr)
+        errors.push(errStr)
+      }
     } catch (err) {
       const errStr = String(err)
       errors.push(errStr)

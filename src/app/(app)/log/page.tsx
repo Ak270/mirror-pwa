@@ -29,7 +29,8 @@ export default function LogPage() {
   async function handleStatusChange(
     habit: HabitWithStatus, 
     status: CheckInStatus,
-    quantifiable?: { value: number; unit: string }
+    quantifiable?: { value: number; unit: string },
+    slipNote?: string
   ) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
@@ -43,6 +44,7 @@ export default function LogPage() {
     await logCheckIn(supabase, user.id, habit.id, status, {
       quantifiable_value: quantifiable?.value ?? null,
       quantifiable_unit: quantifiable?.unit ?? null,
+      slip_note: slipNote ?? null,
     })
     setLoggingId(null)
 

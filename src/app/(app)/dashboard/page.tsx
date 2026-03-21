@@ -18,10 +18,25 @@ export default function DashboardPage() {
   const [greeting, setGreeting] = useState('')
   const [dateLabel, setDateLabel] = useState('')
   const [insight, setInsight] = useState<string | null>(null)
+  const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null)
+  const [isAnonymous, setIsAnonymous] = useState(false)
 
   const loadData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+
+    // Check if user is anonymous and calculate trial days
+    setIsAnonymous(user.is_anonymous || false)
+    if (user.is_anonymous) {
+      const createdAt = localStorage.getItem('mirror_anon_created_at')
+      if (createdAt) {
+        const created = new Date(createdAt)
+        const now = new Date()
+        const daysPassed = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24))
+        const daysLeft = Math.max(0, 7 - daysPassed)
+        setTrialDaysLeft(daysLeft)
+      }
+    }
 
     const [profileData, habitsData] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single().then(r => r.data),
@@ -84,6 +99,37 @@ export default function DashboardPage() {
           </p>
         )}
       </div>
+
+      {/* Trial banner for anonymous users */}
+      {isAnonymous && trialDaysLeft !== null && (
+        <div className="mb-6 p-4 bg-accent-light border border-accent/30 rounded-card">
+          <div className="flex items-start gap-3">
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-brand mb-1">
+                {trialDaysLeft > 0 
+                  ? `${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left in trial`
+                  : 'Trial ended'}
+              </p>
+              <p className="text-xs text-muted mb-3">
+                {trialDaysLeft > 0
+                  ? 'Create an account to keep your data forever. No credit card needed.'
+                  : 'Create an account now to keep all your progress.'}
+              </p>
+              <Link
+                href="/profile"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:text-brand transition-colors"
+              >
+                Upgrade account →
+              </Link>
+            </div>
+            {trialDaysLeft > 0 && (
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
+                <span className="text-lg font-bold text-accent">{trialDaysLeft}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Completion ring + stats */}
       {total > 0 && (
