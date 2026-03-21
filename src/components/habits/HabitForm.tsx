@@ -89,6 +89,7 @@ export default function HabitForm({ existing, defaultCategory }: HabitFormProps)
       habit_type: categoryId === 'break_free' ? 'break' as const : categoryId === 'rhythm' ? 'rhythm' as const : 'build' as const,
       goal_value: null,
       goal_unit: null,
+      display_type: 'binary' as const,
       is_vault: false,
       archived: false,
     }

@@ -22,11 +22,11 @@
   "widgets": [
     {
       "name": "Mirror Habits",
+      "short_name": "Habits",
       "description": "View and track your daily habits",
       "tag": "mirror-habits",
-      "template": "widget-template",
-      "ms_ac_template": "/widget-template.json",
-      "data": "/api/habits/widget",
+      "template": "/widget-template.json",
+      "data": "https://mirror-pwa.vercel.app/api/habits/widget",
       "type": "application/json",
       "screenshots": [
         {
@@ -35,7 +35,9 @@
           "label": "Mirror widget preview"
         }
       ],
-      "update": 900
+      "update": 900,
+      "auth": true,
+      "multiple": false
     }
   ]
 }

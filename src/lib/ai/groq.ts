@@ -1,6 +1,16 @@
 import Groq from 'groq-sdk'
 
-export const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+let groqClient: Groq | null = null
+
+export function getGroqClient(): Groq {
+  if (!groqClient) {
+    groqClient = new Groq({
+      apiKey: process.env.GROQ_API_KEY || 'dummy-key-for-build',
+    })
+  }
+  return groqClient
+}
+
 export const GROQ_MODEL = 'llama-3.3-70b-versatile'
 
 // Rate limiting: module-level Map for simple in-memory tracking

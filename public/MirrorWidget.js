@@ -4,7 +4,7 @@
 // ========== CONFIGURATION ==========
 // Get your API token from Mirror app → Settings → Mobile Setup
 const API_TOKEN = "YOUR_API_TOKEN_HERE"
-const API_URL = "https://your-mirror-app.vercel.app/api/habits/widget"
+const API_URL = "https://mirror-pwa.vercel.app/api/habits/widget"
 
 // Widget appearance
 const WIDGET_BG_COLOR = new Color("#F9F9FC")
@@ -30,9 +30,15 @@ async function createWidget() {
     
     const data = await req.loadJSON()
     
-    if (!data || !data.habits) {
-      throw new Error("No data received")
+    if (!data) {
+      throw new Error("No response from server")
     }
+    
+    if (!data.habits || !Array.isArray(data.habits)) {
+      throw new Error(`Invalid data: ${JSON.stringify(data).substring(0, 100)}`)
+    }
+    
+    console.log(`Loaded ${data.habits.length} habits`)
 
     // Header
     const header = widget.addStack()
@@ -55,10 +61,18 @@ async function createWidget() {
     const habits = data.habits.slice(0, 5)
     
     if (habits.length === 0) {
-      const emptyText = widget.addText("No habits yet")
+      const emptyText = widget.addText("No habits tracked yet")
       emptyText.font = Font.systemFont(12)
       emptyText.textColor = MUTED_COLOR
       emptyText.centerAlignText()
+      
+      widget.addSpacer(8)
+      
+      const hintText = widget.addText("Add habits in the Mirror app")
+      hintText.font = Font.systemFont(10)
+      hintText.textColor = MUTED_COLOR
+      hintText.textOpacity = 0.7
+      hintText.centerAlignText()
     } else {
       for (let i = 0; i < habits.length; i++) {
         const habit = habits[i]
@@ -132,6 +146,9 @@ async function createWidget() {
 
     // Set widget URL to open Mirror app
     widget.url = API_URL.replace('/api/habits/widget', '/log')
+    
+    // Set refresh interval (15 minutes)
+    widget.refreshAfterDate = new Date(Date.now() + 15 * 60 * 1000)
 
   } catch (error) {
     // Error state

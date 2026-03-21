@@ -4,18 +4,43 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { format } from 'date-fns'
 
 export async function GET(request: NextRequest) {
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cs: { name: string; value: string; options: Record<string, unknown> }[]) =>
-          cs.forEach(({ name, value, options }) => cookieStore.set(name, value, options)),
-      },
-    }
-  )
+  // Check for Bearer token (for external widgets like iOS Scriptable)
+  const authHeader = request.headers.get('authorization')
+  let supabase
+  
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.substring(7)
+    // Create Supabase client with the provided token
+    supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll: () => [],
+          setAll: () => {},
+        },
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      }
+    )
+  } else {
+    // Use cookie-based auth for web requests
+    const cookieStore = await cookies()
+    supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll: () => cookieStore.getAll(),
+          setAll: (cs: { name: string; value: string; options: Record<string, unknown> }[]) =>
+            cs.forEach(({ name, value, options }) => cookieStore.set(name, value, options)),
+        },
+      }
+    )
+  }
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -25,7 +50,7 @@ export async function GET(request: NextRequest) {
   // Fetch habits with today's check-ins
   const { data: habits } = await supabase
     .from('habits')
-    .select('id, name, icon, category_id, display_type, archived')
+    .select('id, name, icon_emoji, category_id, display_type, archived')
     .eq('user_id', user.id)
     .eq('archived', false)
     .order('created_at', { ascending: true })
@@ -76,7 +101,7 @@ export async function GET(request: NextRequest) {
       return {
         id: habit.id,
         name: habit.name,
-        icon: habit.icon,
+        icon: habit.icon_emoji,
         category_id: habit.category_id,
         display_type: habit.display_type,
         today_status: checkIn?.status || null,

@@ -51,11 +51,17 @@ export async function POST(request: NextRequest) {
       const [hours, minutes] = habit.reminder_time!.split(':').map(Number)
       const reminderTimeInMinutes = hours * 60 + minutes
       
-      // Calculate minutes until reminder
+      // Calculate minutes until reminder (negative if past)
       const minutesUntil = reminderTimeInMinutes - currentTimeInMinutes
       
       // Send notifications at: -15, -10, -5, 0 minutes
-      const shouldSend = minutesUntil === 15 || minutesUntil === 10 || minutesUntil === 5 || minutesUntil === 0
+      // Also send if we're within 5 minutes PAST the reminder (grace period for missed cron runs)
+      const shouldSend = 
+        minutesUntil === 15 || 
+        minutesUntil === 10 || 
+        minutesUntil === 5 || 
+        minutesUntil === 0 ||
+        (minutesUntil >= -5 && minutesUntil < 0) // Grace period: 0-5 minutes past reminder
       
       if (!shouldSend) continue
 

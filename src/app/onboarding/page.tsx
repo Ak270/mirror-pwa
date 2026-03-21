@@ -68,6 +68,7 @@ export default function OnboardingPage() {
           goal_value: null,
           goal_unit: null,
           reminder_time: null,
+          display_type: 'binary',
           is_vault: false,
           archived: false,
         })

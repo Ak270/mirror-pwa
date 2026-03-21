@@ -1,4 +1,4 @@
-import { groq, GROQ_MODEL, isRateLimited } from './groq'
+import { getGroqClient, GROQ_MODEL, incrementRateLimit, isRateLimited } from './groq'
 import { sanitizeCopy } from '@/lib/utils'
 
 export async function callMirrorAI<T>(
@@ -15,6 +15,7 @@ export async function callMirrorAI<T>(
       return fallback
     }
 
+    const groq = getGroqClient()
     const completion = await groq.chat.completions.create({
       model: GROQ_MODEL,
       messages: [
