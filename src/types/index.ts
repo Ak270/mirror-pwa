@@ -202,16 +202,16 @@ export const CHECK_IN_LABELS: Record<CategoryId, Record<CheckInStatus, string>> 
     honest_slip: 'I had a moment today',
   },
   build_up: {
-    done: 'Done',
-    partial: 'Partial',
+    done: 'I showed up',
+    partial: 'Part of it',
     skip: 'Not today',
-    honest_slip: 'Honest slip',
+    honest_slip: 'I had a moment',
   },
   rhythm: {
     done: 'On rhythm',
     partial: 'Close enough',
     skip: 'Off rhythm today',
-    honest_slip: 'Off track today',
+    honest_slip: 'Different day today',
   },
   mind_spirit: {
     done: 'I showed up',

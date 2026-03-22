@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Check, Moon } from 'lucide-react'
 import type { HabitWithStatus, CheckInStatus } from '@/types'
 import { getCategoryColor, formatStreakLabel } from '@/lib/utils'
+import { shouldShowForgiveness } from '@/lib/streak'
 
 interface HabitCardProps {
   habit: HabitWithStatus
@@ -22,6 +23,10 @@ const STATUS_BUTTON_CLASSES: Record<string, string> = {
 export default function HabitCard({ habit, onStatusChange, showLink = true }: HabitCardProps) {
   const iconBg = getCategoryColor(habit.category_id)
   const status = habit.today_status
+  
+  // Check if habit is on grace day
+  const lastCheckInDate = habit.check_ins?.sort((a, b) => b.date.localeCompare(a.date))[0]?.date ?? null
+  const isOnGrace = shouldShowForgiveness(habit.current_streak, lastCheckInDate)
 
   const getCategoryBorderColor = () => {
     if (habit.category_id === 'build_up') return 'border-l-brand'
@@ -31,7 +36,9 @@ export default function HabitCard({ habit, onStatusChange, showLink = true }: Ha
     return 'border-l-brand'
   }
 
-  const cardBorder = status === 'honest_slip'
+  const cardBorder = isOnGrace
+    ? 'border border-amber/30 shadow-card-amber'
+    : status === 'honest_slip'
     ? 'border border-slip/25 shadow-card-slip'
     : status === 'done'
     ? 'border border-border shadow-[0_2px_8px_rgba(0,0,0,0.04)]'
@@ -59,13 +66,24 @@ export default function HabitCard({ habit, onStatusChange, showLink = true }: Ha
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <div className={`font-medium text-sm truncate ${
-          status === 'done' || status === 'partial' ? 'text-text-secondary' : 'text-text-primary'
-        }`}>
-          {habit.name}
+        <div className="flex items-center gap-2">
+          <div className={`font-medium text-sm truncate ${
+            status === 'done' || status === 'partial' ? 'text-text-secondary' : 'text-text-primary'
+          }`}>
+            {habit.name}
+          </div>
+          {isOnGrace && (
+            <span className="px-2 py-0.5 bg-amber/10 border border-amber/30 rounded-full text-[10px] font-medium text-amber-700 whitespace-nowrap">
+              Grace day
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2 mt-1">
-          {habit.current_streak > 0 ? (
+          {isOnGrace ? (
+            <span className="text-xs text-amber-700 font-medium">
+              Tonight is still today
+            </span>
+          ) : habit.current_streak > 0 ? (
             <span className="font-mono text-xs font-medium text-streak-fire">
               {habit.current_streak} 🔥
             </span>
@@ -74,7 +92,7 @@ export default function HabitCard({ habit, onStatusChange, showLink = true }: Ha
               {habit.today_status === null ? 'Not logged today' : 'Logged today'}
             </span>
           )}
-          {habit.category_id === 'break_free' && habit.current_streak >= 1 && (
+          {!isOnGrace && habit.category_id === 'break_free' && habit.current_streak >= 1 && (
             <span className="text-xs text-text-tertiary">• Day {habit.current_streak}</span>
           )}
         </div>

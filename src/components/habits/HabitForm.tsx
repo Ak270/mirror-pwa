@@ -56,6 +56,13 @@ export default function HabitForm({ existing, defaultCategory }: HabitFormProps)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
+  
+  // Intent classification (leave vs start)
+  const [intent, setIntent] = useState<'start' | 'leave'>('start')
+  const [addictionLevel, setAddictionLevel] = useState<number>(5)
+  const [originAnchor, setOriginAnchor] = useState('')
+  const [day1Letter, setDay1Letter] = useState('')
+  const [showIntentStep, setShowIntentStep] = useState(!existing)
 
   // Break-free fields
   const [checkInInterval, setCheckInInterval] = useState<number>(existing?.check_in_interval_minutes ?? 120)
@@ -71,6 +78,7 @@ export default function HabitForm({ existing, defaultCategory }: HabitFormProps)
   const [reminderEndTime, setReminderEndTime] = useState(existing?.reminder_end_time ?? '20:00')
 
   const isBreakFree = categoryId === 'break_free'
+  const isLeaveHabit = intent === 'leave'
   const isQuantifiable = dailyTarget !== '' && !isBreakFree
 
   const filteredSuggestions = getHabitSuggestions(name, 15)
@@ -108,6 +116,12 @@ export default function HabitForm({ existing, defaultCategory }: HabitFormProps)
       display_type: isQuantifiable ? 'counter' as const : 'binary' as const,
       is_vault: false,
       archived: false,
+      // Intent classification
+      intent,
+      addiction_level: isLeaveHabit ? addictionLevel : null,
+      origin_anchor: isLeaveHabit && originAnchor.trim() ? originAnchor.trim() : null,
+      day1_letter: isLeaveHabit && day1Letter.trim() ? day1Letter.trim() : null,
+      day1_letter_delivered: false,
       // Break-free fields
       check_in_interval_minutes: isBreakFree ? checkInInterval : null,
       daily_reduction_goal: isBreakFree && dailyReductionGoal ? parseFloat(dailyReductionGoal) : null,
@@ -134,6 +148,101 @@ export default function HabitForm({ existing, defaultCategory }: HabitFormProps)
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Intent selection - only for new habits */}
+      {showIntentStep && !existing && (
+        <div>
+          <label className="mirror-label">Is this something you want to START or LEAVE behind?</label>
+          <div className="grid grid-cols-2 gap-3 mt-2">
+            <button
+              type="button"
+              onClick={() => setIntent('start')}
+              className={`p-4 rounded-card border-2 transition-all ${
+                intent === 'start' 
+                  ? 'border-success bg-success/5' 
+                  : 'border-border hover:border-success/40'
+              }`}
+            >
+              <div className="text-2xl mb-2">↗️</div>
+              <div className="font-semibold text-sm text-brand">START</div>
+              <div className="text-xs text-muted mt-1">Build something new</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIntent('leave')}
+              className={`p-4 rounded-card border-2 transition-all ${
+                intent === 'leave' 
+                  ? 'border-amber bg-amber/5' 
+                  : 'border-border hover:border-amber/40'
+              }`}
+            >
+              <div className="text-2xl mb-2">🚪</div>
+              <div className="font-semibold text-sm text-brand">LEAVE</div>
+              <div className="text-xs text-muted mt-1">Free yourself from something</div>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Addiction level slider - only for LEAVE habits */}
+      {isLeaveHabit && !existing && (
+        <div>
+          <label className="mirror-label">How strong is the pull right now?</label>
+          <input
+            type="range"
+            min="1"
+            max="10"
+            value={addictionLevel}
+            onChange={(e) => setAddictionLevel(parseInt(e.target.value))}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber"
+          />
+          <div className="flex justify-between text-xs text-muted mt-1">
+            <span>Mild habit</span>
+            <span className="font-medium text-brand">{addictionLevel}</span>
+            <span>Feel controlled by it</span>
+          </div>
+          <p className="text-sm text-muted mt-2">
+            {addictionLevel <= 3 && "Mirror will check in gently. You've got this."}
+            {addictionLevel > 3 && addictionLevel <= 6 && "Mirror will check in more often, especially in harder moments."}
+            {addictionLevel > 6 && addictionLevel <= 9 && "Mirror will be with you closely, especially the first week."}
+            {addictionLevel === 10 && "Mirror will support you fully. Consider also speaking with a professional — this is hard, and you don't have to do it alone."}
+          </p>
+        </div>
+      )}
+
+      {/* Origin anchor - only for LEAVE habits */}
+      {isLeaveHabit && !existing && (
+        <div>
+          <label className="mirror-label">
+            On the day you decided this — what was happening? <span className="font-normal text-muted">(optional)</span>
+          </label>
+          <textarea
+            value={originAnchor}
+            onChange={(e) => setOriginAnchor(e.target.value)}
+            placeholder="A moment, a feeling, something you saw or heard..."
+            className="mirror-input min-h-[80px] resize-none"
+            maxLength={200}
+          />
+          <p className="text-xs text-muted mt-1">Mirror will send your own words back when the day gets hard.</p>
+        </div>
+      )}
+
+      {/* Day 1 letter - only for LEAVE habits */}
+      {isLeaveHabit && !existing && (
+        <div>
+          <label className="mirror-label">
+            Write a letter to yourself for the hard days <span className="font-normal text-muted">(optional)</span>
+          </label>
+          <textarea
+            value={day1Letter}
+            onChange={(e) => setDay1Letter(e.target.value)}
+            placeholder="Hey. I know today is hard. When I wrote this, here is what I wanted you to remember..."
+            className="mirror-input min-h-[120px] resize-none"
+            maxLength={500}
+          />
+          <p className="text-xs text-muted mt-1">This stays sealed until you need it. Delivered on your first slip.</p>
+        </div>
+      )}
+
       {/* Emoji picker */}
       <div>
         <label className="mirror-label">Icon</label>

@@ -41,7 +41,7 @@ export default function VaultPage() {
         await loadHabits()
       } else if (result.lockedUntil) {
         setLockedUntil(result.lockedUntil)
-        setPinError('Too many attempts. The vault will unlock in 24 hours.')
+        setPinError('Take a break. The vault will be here in 24 hours.')
       } else {
         setPinError('Incorrect PIN.')
       }
@@ -244,7 +244,7 @@ export default function VaultPage() {
                           : 'border-brand/10 text-muted hover:border-accent hover:text-brand'
                       }`}
                     >
-                      {s === 'done' ? 'Done' : s === 'skip' ? 'Skip' : 'Slip'}
+                      {s === 'done' ? 'Done' : s === 'skip' ? 'Skip' : 'Had a moment'}
                     </button>
                   ))}
                 </div>

@@ -117,7 +117,7 @@ export default function CheckInButton({
       {showSlipNote && (
         <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50" onClick={() => setShowSlipNote(false)}>
           <div className="bg-white rounded-t-card shadow-hover max-w-lg w-full p-6 animate-slide-up" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-semibold text-brand mb-1">Why did you slip?</h3>
+            <p className="text-sm text-brand mb-2">What was going on?</p>
             <p className="text-sm text-muted mb-4">Optional — helps you see patterns later.</p>
             
             <textarea
@@ -140,7 +140,7 @@ export default function CheckInButton({
                 onClick={handleSlipNoteSubmit}
                 className="flex-1 mirror-btn-primary text-sm py-2.5"
               >
-                Log slip
+                Note it
               </button>
             </div>
           </div>

@@ -52,7 +52,7 @@ export default function LogPage() {
     const fallback =
       status === 'done' ? 'You showed up today.' :
       status === 'honest_slip' ? 'Noted. Yesterday is yesterday.' :
-      status === 'partial' ? 'Something is better than nothing.' : null
+      status === 'partial' ? 'You still showed up.' : null
 
     if (fallback) {
       setConfirmation(fallback)
@@ -100,7 +100,7 @@ export default function LogPage() {
             ? 'No habits yet.'
             : logged === total
             ? 'All done today.'
-            : `${total - logged} left to log.`}
+            : `${total - logged} more when you're ready.`}
         </h1>
       </div>
 

@@ -4,7 +4,9 @@ import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getHabitsWithTodayStatus, logCheckIn } from '@/lib/habits'
 import { getTimeOfDay, getGreeting, formatDate } from '@/lib/utils'
-import CompletionRing from '@/components/dashboard/CompletionRing'
+import { differenceInCalendarDays, parseISO } from 'date-fns'
+import LivingProgressRing from '@/components/dashboard/LivingProgressRing'
+import ReentryBanner from '@/components/dashboard/ReentryBanner'
 import HabitCard from '@/components/habits/HabitCard'
 import type { HabitWithStatus, CheckInStatus, Profile } from '@/types'
 import Link from 'next/link'
@@ -18,8 +20,12 @@ export default function DashboardPage() {
   const [greeting, setGreeting] = useState('')
   const [dateLabel, setDateLabel] = useState('')
   const [insight, setInsight] = useState<string | null>(null)
+  const [livingInsight, setLivingInsight] = useState<string | null>(null)
   const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null)
   const [isAnonymous, setIsAnonymous] = useState(false)
+  const [reentryDays, setReentryDays] = useState<number | null>(null)
+  const [showReentryBanner, setShowReentryBanner] = useState(false)
+  const [lastThreshold, setLastThreshold] = useState(0)
 
   const loadData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -45,6 +51,28 @@ export default function DashboardPage() {
 
     setProfile(profileData)
     setHabits(habitsData)
+
+    // Detect re-entry (user returning after 3+ days)
+    if (habitsData.length > 0) {
+      const allCheckIns = habitsData.flatMap(h => h.check_ins ?? [])
+      if (allCheckIns.length > 0) {
+        const mostRecent = allCheckIns.sort((a, b) => 
+          b.created_at.localeCompare(a.created_at)
+        )[0]
+        const daysSince = differenceInCalendarDays(
+          new Date(), 
+          parseISO(mostRecent.created_at)
+        )
+        if (daysSince > 2) {
+          setReentryDays(daysSince)
+          // Check localStorage to see if we've shown this recently
+          const lastShown = localStorage.getItem('mirror_reentry_last_shown')
+          const shouldShow = !lastShown || 
+            differenceInCalendarDays(new Date(), parseISO(lastShown)) >= 7
+          setShowReentryBanner(shouldShow)
+        }
+      }
+    }
 
     const tod = getTimeOfDay()
     const firstName = profileData?.display_name?.split(' ')[0] ?? null
@@ -132,22 +160,55 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Completion ring + stats */}
+      {/* Re-entry banner */}
+      {showReentryBanner && reentryDays && (
+        <ReentryBanner 
+          daysAway={reentryDays} 
+          onDismiss={() => {
+            setShowReentryBanner(false)
+            localStorage.setItem('mirror_reentry_last_shown', new Date().toISOString())
+          }}
+        />
+      )}
+
+      {/* Living progress ring */}
       {total > 0 && (
-        <div className="mirror-card p-5 mb-6">
-          <div className="flex items-center gap-5">
-            <CompletionRing logged={logged} total={total} />
-            <div className="flex-1">
-              <p className="text-brand font-semibold">
-                {logged === 0
-                  ? 'Today is still open.'
-                  : logged === total
-                  ? 'You showed up today.'
-                  : `${total - logged} habit${total - logged !== 1 ? 's' : ''} remaining.`}
-              </p>
-              <p className="text-muted text-sm mt-1">No rush.</p>
-            </div>
-          </div>
+        <div className="mirror-card p-6 mb-6 flex flex-col items-center">
+          <LivingProgressRing 
+            logged={logged} 
+            total={total}
+            livingInsight={livingInsight ?? undefined}
+            onThresholdCross={(threshold) => {
+              if (threshold !== lastThreshold) {
+                setLastThreshold(threshold)
+                // Fetch threshold-specific living insight
+                const completedNames = habits.filter(h => h.today_status === 'done' || h.today_status === 'partial').map(h => h.name)
+                const remainingNames = habits.filter(h => !h.today_status).map(h => h.name)
+                const topHabit = habits.sort((a, b) => b.current_streak - a.current_streak)[0]
+                const timeLabel = getTimeOfDay()
+                
+                fetch('/api/ai/living-insight', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    completion_pct: threshold,
+                    done: logged,
+                    total,
+                    completed_habits_names: completedNames,
+                    remaining_habits_names: remainingNames,
+                    time_label: timeLabel,
+                    top_habit: topHabit?.name ?? '',
+                    top_streak: topHabit?.current_streak ?? 0
+                  })
+                })
+                  .then(r => r.ok ? r.json() : null)
+                  .then((d: { insight?: string } | null) => { 
+                    if (d?.insight) setLivingInsight(d.insight) 
+                  })
+                  .catch(() => {})
+              }
+            }}
+          />
 
           {/* Show pending habit(s) */}
           {logged < total && (() => {
@@ -159,7 +220,7 @@ export default function DashboardPage() {
                   <span className="text-2xl">{habit.icon_emoji}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-text-primary truncate">{habit.name}</p>
-                    <p className="text-xs text-text-tertiary">Still pending</p>
+                    <p className="text-sm text-muted mt-1">Whenever you're ready</p>
                   </div>
                   <Link
                     href="/log"
