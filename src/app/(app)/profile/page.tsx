@@ -107,14 +107,27 @@ export default function ProfilePage() {
   }
 
   async function handleExport(format: 'json' | 'csv') {
-    const res = await fetch(`/api/export?format=${format}`)
-    const blob = await res.blob()
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `mirror-export.${format}`
-    a.click()
-    URL.revokeObjectURL(url)
+    try {
+      const res = await fetch(`/api/export?format=${format}`)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `mirror-export-${new Date().toISOString().split('T')[0]}.${format}`
+      
+      // Append to body for iOS compatibility
+      document.body.appendChild(a)
+      a.click()
+      
+      // Clean up immediately
+      setTimeout(() => {
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      }, 100)
+    } catch (error) {
+      console.error('Export failed:', error)
+      alert('Export failed. Please try again.')
+    }
   }
 
   async function handleSignOut() {
@@ -135,11 +148,17 @@ export default function ProfilePage() {
     setDarkMode(newMode)
     localStorage.setItem('mirror-theme', newMode ? 'dark' : 'light')
     
+    // Force immediate DOM update
     if (newMode) {
       document.documentElement.classList.add('dark')
+      document.documentElement.setAttribute('data-theme', 'dark')
     } else {
       document.documentElement.classList.remove('dark')
+      document.documentElement.setAttribute('data-theme', 'light')
     }
+    
+    // Force reflow to ensure styles apply
+    void document.documentElement.offsetHeight
   }
 
   return (
