@@ -22,13 +22,16 @@ export async function POST(request: NextRequest) {
 
   const today = new Date().toISOString().split('T')[0]
   const now = new Date()
-  const currentHour = now.getHours()
-  const currentMinute = now.getMinutes()
+  
+  // Use IST timezone (Asia/Kolkata) for quiet hours check
+  const istTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }))
+  const currentHour = istTime.getHours()
+  const currentMinute = istTime.getMinutes()
   const currentTimeInMinutes = currentHour * 60 + currentMinute
 
-  // Only send during quiet hours window (7am–10pm)
+  // Only send during quiet hours window (7am–10pm IST)
   if (currentHour < 7 || currentHour >= 22) {
-    return NextResponse.json({ message: 'Outside notification window' })
+    return NextResponse.json({ message: 'Outside notification window (7am-10pm IST)' })
   }
 
   // Get habits with reminder_time set
@@ -91,26 +94,7 @@ export async function POST(request: NextRequest) {
         continue // Skip stale subscription
       }
 
-      // Determine time of day for context-aware messaging
-      const timeOfDay = currentHour < 12 ? 'morning' : currentHour < 17 ? 'afternoon' : 'evening'
-      
-      // Get user's total unlogged habits for context
-      const { data: allUserHabits } = await supabase
-        .from('habits')
-        .select('id')
-        .eq('user_id', habit.user_id)
-        .eq('archived', false)
-      
-      const { data: todayCheckIns } = await supabase
-        .from('check_ins')
-        .select('habit_id')
-        .eq('user_id', habit.user_id)
-        .eq('date', today)
-      
-      const loggedHabitIds = new Set(todayCheckIns?.map(ci => ci.habit_id) || [])
-      const unloggedCount = (allUserHabits?.length || 1) - loggedHabitIds.size
-      
-      // Check for streak data to send streak-at-risk notification
+      // Check for streak data
       const { data: recentCheckIns } = await supabase
         .from('check_ins')
         .select('date, status')
@@ -134,22 +118,59 @@ export async function POST(request: NextRequest) {
         }
       }
       
-      // Use smart notification copy
-      const { NOTIFICATION_COPY } = await import('@/lib/notifications')
-      let notificationContent
+      // Generate dynamic AI notification message
+      const { getGroqClient, GROQ_MODEL } = await import('@/lib/ai/groq')
+      const groq = getGroqClient()
       
-      if (currentStreak >= 7 && minutesUntil === 0) {
-        // Streak at risk notification
-        notificationContent = NOTIFICATION_COPY.streak_at_risk(currentStreak, habit.name)
-      } else if (minutesUntil === 0) {
-        // Daily reminder with context
-        notificationContent = NOTIFICATION_COPY.daily_reminder(timeOfDay, unloggedCount)
-      } else {
-        // Time-based reminder
-        notificationContent = {
-          title: 'Mirror',
-          body: `${habit.name} in ${minutesUntil} minutes`,
+      // Determine timing context
+      let timingPhase = ''
+      if (minutesUntil === 15) timingPhase = 'early_reminder'
+      else if (minutesUntil === 10) timingPhase = 'prep_reminder'
+      else if (minutesUntil === 5) timingPhase = 'final_reminder'
+      else if (minutesUntil === 0 || (minutesUntil >= -5 && minutesUntil < 0)) timingPhase = 'time_now'
+      
+      const prompt = `Generate a short, motivating notification message for a habit reminder.
+
+Habit: ${habit.name}
+Current streak: ${currentStreak} days
+Time until habit: ${minutesUntil} minutes
+Phase: ${timingPhase}
+
+Guidelines:
+- For early_reminder (15 min): Gentle heads-up, preparation suggestion
+- For prep_reminder (10 min): Get ready, gather items needed
+- For final_reminder (5 min): Final push, almost time
+- For time_now (0 min): It's time, let's go, action-oriented
+- Keep it under 60 characters
+- Be casual, friendly, motivating
+- Don't use "Mirror" in the message
+- If streak > 7, mention protecting the streak
+- Make it specific to the habit type (e.g., gym, reading, meditation)
+
+Return ONLY the message text, nothing else.`
+
+      let notificationBody = `${habit.name} in ${Math.abs(minutesUntil)} minutes`
+      
+      try {
+        const completion = await groq.chat.completions.create({
+          model: GROQ_MODEL,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.8,
+          max_tokens: 50,
+        })
+        
+        const aiMessage = completion.choices[0]?.message?.content?.trim()
+        if (aiMessage && aiMessage.length > 0 && aiMessage.length < 100) {
+          notificationBody = aiMessage.replace(/^["']|["']$/g, '') // Remove quotes if present
         }
+      } catch (aiErr) {
+        console.error('AI notification generation failed:', aiErr)
+        // Fall back to simple message
+      }
+      
+      const notificationContent = {
+        title: habit.name,
+        body: notificationBody,
       }
 
       try {
