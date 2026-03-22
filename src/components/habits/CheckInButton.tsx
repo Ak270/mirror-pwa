@@ -116,7 +116,7 @@ export default function CheckInButton({
       {/* Slip note bottom sheet */}
       {showSlipNote && (
         <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50" onClick={() => setShowSlipNote(false)}>
-          <div className="bg-white rounded-t-card shadow-hover max-w-lg w-full p-6 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-t-card shadow-hover max-w-lg w-full p-6 pb-24 animate-slide-up" onClick={(e) => e.stopPropagation()}>
             <p className="text-sm text-brand mb-2">What was going on?</p>
             <p className="text-sm text-muted mb-4">Optional — helps you see patterns later.</p>
             
