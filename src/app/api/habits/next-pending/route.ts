@@ -3,12 +3,14 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 export async function GET(req: NextRequest) {
-  // Get token from query params (for iOS Shortcuts)
-  const token = req.nextUrl.searchParams.get('token')
+  // Get token from Authorization header (Bearer token)
+  const authHeader = req.headers.get('authorization')
   
-  if (!token) {
-    return NextResponse.json({ error: 'token required' }, { status: 401 })
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return NextResponse.json({ error: 'Authorization header required' }, { status: 401 })
   }
+
+  const token = authHeader.substring(7) // Remove 'Bearer ' prefix
 
   // Create Supabase client
   const cookieStore = await cookies()

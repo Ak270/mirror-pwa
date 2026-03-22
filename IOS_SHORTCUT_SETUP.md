@@ -75,9 +75,10 @@ Store as: apiToken
 #### Action 2: Get Next Pending Habit
 ```
 Get contents of URL
-URL: https://mirror-pwa.vercel.app/api/habits/next-pending?token=[apiToken]
+URL: https://mirror-pwa.vercel.app/api/habits/next-pending
 Method: GET
-Headers: (none needed, token in URL)
+Headers: 
+  Authorization: Bearer [apiToken]
 Store response as: response
 ```
 
@@ -122,8 +123,10 @@ Body: Logging as done...
 #### Action 7: Log the Habit
 ```
 Get contents of URL
-URL: https://mirror-pwa.vercel.app/api/habits/checkin?token=[apiToken]
+URL: https://mirror-pwa.vercel.app/api/habits/checkin
 Method: POST
+Headers:
+  Authorization: Bearer [apiToken]
 Request Body: JSON
 {
   "habit_id": "[habitId]",
@@ -244,7 +247,8 @@ Search: [NEXT-PENDING]
 
 - Token is stored in Shortcuts app (encrypted by iOS)
 - Token is same as widget token (already exists)
-- Token is passed via URL param (HTTPS encrypted)
+- Token is passed via Authorization header (more secure than URL params)
+- HTTPS encryption for all requests
 - No new security concerns vs existing widget
 
 ## 📝 Documentation for Users

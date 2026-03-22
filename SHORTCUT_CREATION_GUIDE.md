@@ -26,9 +26,12 @@ Create an iOS Shortcut that logs your next pending habit with one tap from the l
    - Search for "Get Contents of URL"
    - Add it
    - Configure:
-     - URL: `https://mirror-pwa.vercel.app/api/habits/next-pending?token=`
-     - After `token=`, tap and insert variable: `apiToken`
+     - URL: `https://mirror-pwa.vercel.app/api/habits/next-pending`
      - Method: GET
+     - Show More (expand advanced options)
+     - Headers: Add New Field
+       - Key: `Authorization`
+       - Value: Type `Bearer ` (with space), then insert variable `apiToken`
    - Tap the result variable and rename to: `response`
 
 5. **Add Action 3: Check if All Done**
@@ -100,9 +103,12 @@ Create an iOS Shortcut that logs your next pending habit with one tap from the l
     - Search for "Get Contents of URL"
     - Add it
     - Configure:
-      - URL: `https://mirror-pwa.vercel.app/api/habits/checkin?token=`
-      - After `token=`, insert `apiToken`
+      - URL: `https://mirror-pwa.vercel.app/api/habits/checkin`
       - Method: POST
+      - Show More (expand advanced options)
+      - Headers: Add New Field
+        - Key: `Authorization`
+        - Value: Type `Bearer ` (with space), then insert variable `apiToken`
       - Request Body: JSON
       - Add two fields:
         - Key: `habit_id`, Value: insert `habitId`
@@ -169,7 +175,8 @@ User taps lock screen icon
     ↓
 Ask for API token (first time only)
     ↓
-GET /api/habits/next-pending?token=XXX
+GET /api/habits/next-pending
+    Headers: Authorization: Bearer XXX
     ↓
 Check if all_done = true
     ↓
@@ -179,7 +186,8 @@ If no → Get habit details (name, icon, id)
     ↓
 Show notification: "[icon] [name] - Logging..."
     ↓
-POST /api/habits/checkin?token=XXX
+POST /api/habits/checkin
+    Headers: Authorization: Bearer XXX
     Body: { habit_id: XXX, status: "done" }
     ↓
 Show notification: "✓ Logged - [name] marked as done"
