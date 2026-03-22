@@ -9,11 +9,17 @@ webpush.setVapidDetails(
 )
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now()
+  console.log('[CRON] ========== Notification cron job started ==========')
+  
   // Verify cron secret
   const authHeader = request.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    console.log('[CRON] ❌ Unauthorized request')
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  
+  console.log('[CRON] ✅ Authorization verified')
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,10 +35,15 @@ export async function POST(request: NextRequest) {
   const currentMinute = istTime.getMinutes()
   const currentTimeInMinutes = currentHour * 60 + currentMinute
 
+  console.log(`[CRON] Current time: ${currentHour}:${currentMinute.toString().padStart(2, '0')} IST`)
+
   // Only send during quiet hours window (7am–10pm IST)
   if (currentHour < 7 || currentHour >= 22) {
+    console.log(`[CRON] Outside notification window (current: ${currentHour}:${currentMinute}, allowed: 7am-10pm IST)`)
     return NextResponse.json({ message: 'Outside notification window (7am-10pm IST)' })
   }
+  
+  console.log('[CRON] ✅ Within notification window')
 
   // Get habits with reminder_time set
   const { data: habitsWithReminders } = await supabase
@@ -41,7 +52,10 @@ export async function POST(request: NextRequest) {
     .not('reminder_time', 'is', null)
     .eq('archived', false)
 
+  console.log(`[CRON] Found ${habitsWithReminders?.length || 0} habits with reminders`)
+
   if (!habitsWithReminders?.length) {
+    console.log('[CRON] No habits with reminders, exiting')
     return NextResponse.json({ sent: 0, message: 'No habits with reminders' })
   }
 
@@ -129,6 +143,8 @@ export async function POST(request: NextRequest) {
       else if (minutesUntil === 5) timingPhase = 'final_reminder'
       else if (minutesUntil === 0 || (minutesUntil >= -5 && minutesUntil < 0)) timingPhase = 'time_now'
       
+      console.log(`[NOTIFICATION] Generating AI message for habit: ${habit.name}, phase: ${timingPhase}, streak: ${currentStreak}`)
+      
       const prompt = `Generate a short, motivating notification message for a habit reminder.
 
 Habit: ${habit.name}
@@ -150,8 +166,12 @@ Guidelines:
 Return ONLY the message text, nothing else.`
 
       let notificationBody = `${habit.name} in ${Math.abs(minutesUntil)} minutes`
+      let aiGenerated = false
       
       try {
+        console.log(`[GROQ] Calling Groq API for habit: ${habit.name}`)
+        const startTime = Date.now()
+        
         const completion = await groq.chat.completions.create({
           model: GROQ_MODEL,
           messages: [{ role: 'user', content: prompt }],
@@ -159,14 +179,28 @@ Return ONLY the message text, nothing else.`
           max_tokens: 50,
         })
         
+        const duration = Date.now() - startTime
         const aiMessage = completion.choices[0]?.message?.content?.trim()
+        
+        console.log(`[GROQ] Response received in ${duration}ms:`, aiMessage)
+        
         if (aiMessage && aiMessage.length > 0 && aiMessage.length < 100) {
           notificationBody = aiMessage.replace(/^["']|["']$/g, '') // Remove quotes if present
+          aiGenerated = true
+          console.log(`[GROQ] ✅ Using AI-generated message: "${notificationBody}"`)
+        } else {
+          console.log(`[GROQ] ⚠️ AI message invalid (length: ${aiMessage?.length}), using fallback`)
         }
       } catch (aiErr) {
-        console.error('AI notification generation failed:', aiErr)
+        console.error(`[GROQ] ❌ AI notification generation failed for ${habit.name}:`, aiErr)
+        console.error('[GROQ] Error details:', {
+          message: aiErr instanceof Error ? aiErr.message : String(aiErr),
+          stack: aiErr instanceof Error ? aiErr.stack : undefined
+        })
         // Fall back to simple message
       }
+      
+      console.log(`[NOTIFICATION] Final message for ${habit.name}: "${notificationBody}" (AI: ${aiGenerated})`)
       
       const notificationContent = {
         title: habit.name,
@@ -208,5 +242,9 @@ Return ONLY the message text, nothing else.`
     }
   }
 
+  const duration = Date.now() - startTime
+  console.log(`[CRON] ========== Notification cron job completed ==========`)
+  console.log(`[CRON] Summary: ${sent} notifications sent, ${errors.length} errors, duration: ${duration}ms`)
+  
   return NextResponse.json({ sent, errors: errors.slice(0, 5) })
 }
