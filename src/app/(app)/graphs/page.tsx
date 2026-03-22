@@ -132,6 +132,7 @@ export default function GraphsPage() {
           {/* Failure pattern insights */}
           {checkIns.length >= 14 && (
             <FailurePatternInsight 
+              habitId={selected.id}
               habitName={selected.name}
               checkIns={checkIns}
               allHabits={habits.map(h => ({ id: h.id, name: h.name }))}

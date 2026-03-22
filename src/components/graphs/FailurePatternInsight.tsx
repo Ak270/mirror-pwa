@@ -5,6 +5,7 @@ import { Calendar, RefreshCw, Link2 } from 'lucide-react'
 import type { CheckIn } from '@/types'
 
 interface FailurePatternInsightProps {
+  habitId: string
   habitName: string
   checkIns: CheckIn[]
   allHabits?: Array<{ id: string; name: string }>
@@ -12,6 +13,7 @@ interface FailurePatternInsightProps {
 }
 
 export default function FailurePatternInsight({ 
+  habitId,
   habitName, 
   checkIns,
   allHabits = [],
@@ -80,10 +82,13 @@ export default function FailurePatternInsight({
     // Cascade analysis (if other habits provided)
     let cascadeInsights: Array<{ habitName: string; probability: number }> = []
     
-    if (allHabits.length > 0 && Object.keys(allCheckIns).length > 0) {
+    if (allHabits.length > 1 && Object.keys(allCheckIns).length > 1) {
       const slipDates = new Set(slips.map(s => s.date))
       
       for (const otherHabit of allHabits) {
+        // Skip self-reference
+        if (otherHabit.id === habitId) continue
+        
         const otherCIs = allCheckIns[otherHabit.id] || []
         if (otherCIs.length < 14) continue
 
@@ -103,16 +108,45 @@ export default function FailurePatternInsight({
       cascadeInsights = cascadeInsights.slice(0, 2)
     }
 
+    // Calculate slip rate
+    const slipRate = (slips.length / checkIns.length) * 100
+
+    // Generate actionable suggestions
+    const suggestions: string[] = []
+    
+    if (worstDay.rate > 50 && worstDay.total >= 4) {
+      suggestions.push(`Set a reminder for ${worstDay.day}s at a specific time to prepare ahead`)
+    }
+    
+    if (weekendRate > weekdayRate + 20) {
+      suggestions.push('Plan weekend activities in advance to maintain structure')
+    } else if (weekdayRate > weekendRate + 20) {
+      suggestions.push('Use weekends to build momentum for the upcoming week')
+    }
+    
+    if (avgRecovery > 3) {
+      suggestions.push('After a slip, commit to logging the very next day to prevent longer gaps')
+    }
+    
+    if (cascadeInsights.length > 0) {
+      suggestions.push(`Focus on ${habitName} first — it may help protect ${cascadeInsights[0].habitName}`)
+    }
+    
+    if (slipRate > 40 && suggestions.length === 0) {
+      suggestions.push('Consider adjusting the habit to be more achievable or breaking it into smaller steps')
+    }
+
     return {
       worstDay,
       weekendRate,
       weekdayRate,
       avgRecovery,
       cascadeInsights,
+      suggestions,
       totalSlips: slips.length,
       slipRate: (slips.length / checkIns.length) * 100,
     }
-  }, [checkIns, allHabits, allCheckIns])
+  }, [habitId, checkIns, allHabits, allCheckIns])
 
   if (!patterns || patterns.totalSlips === 0) return null
 
@@ -170,7 +204,7 @@ export default function FailurePatternInsight({
           <div className="flex items-start gap-3 p-3 bg-surface rounded-btn border-l-2 border-streak-fire">
             <Link2 className="w-4 h-4 text-streak-fire flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-brand mb-1">Cascade alert</p>
+              <p className="text-sm font-medium text-brand mb-1">Cascade effect</p>
               <p className="text-xs text-text-secondary">
                 On days you miss {habitName}, you're {Math.round(patterns.cascadeInsights[0].probability)}% more likely to miss{' '}
                 <strong className="text-brand">{patterns.cascadeInsights[0].habitName}</strong>
@@ -179,6 +213,21 @@ export default function FailurePatternInsight({
           </div>
         )}
       </div>
+
+      {/* Actionable suggestions */}
+      {patterns.suggestions.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-border">
+          <p className="text-xs font-mono text-accent uppercase tracking-wide mb-3">💡 How to improve</p>
+          <ul className="space-y-2">
+            {patterns.suggestions.map((suggestion, i) => (
+              <li key={i} className="flex items-start gap-2 text-xs text-text-secondary">
+                <span className="text-accent mt-0.5">→</span>
+                <span>{suggestion}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   )
 }
