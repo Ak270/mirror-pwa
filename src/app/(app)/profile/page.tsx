@@ -335,13 +335,38 @@ export default function ProfilePage() {
                   <li>Install the free "Scriptable" app from App Store</li>
                   <li>Download the widget script: <a href="/MirrorWidget.js" className="text-accent underline" download>MirrorWidget.js</a></li>
                   <li>Open Scriptable, tap +, paste the script</li>
-                  <li>Edit line 5: Replace <code className="font-mono text-[10px]">YOUR_API_TOKEN_HERE</code> with your token above</li>
-                  <li>Edit line 6: Replace URL with your Mirror app URL</li>
+                  <li>Edit line 15: Replace <code className="font-mono text-[10px]">YOUR_API_TOKEN_HERE</code> with your token above</li>
                   <li>Save, then add Scriptable widget to home screen</li>
                   <li>Long-press widget → Edit Widget → choose "MirrorWidget"</li>
                 </ol>
                 <p className="text-[10px] text-muted italic">
-                  Widget updates every 15 minutes and shows your daily progress.
+                  Widget updates every 10 minutes and shows your daily progress.
+                </p>
+              </div>
+
+              {/* iOS Lock Screen Shortcut */}
+              <div className="mb-4 pt-3 border-t border-brand/10">
+                <p className="text-xs font-semibold text-brand mb-2">🔒 Lock Screen Quick Log (iOS 16+)</p>
+                <p className="text-[11px] text-muted mb-2">
+                  Log your next habit with one tap from your lock screen — no unlocking, no opening apps.
+                </p>
+                <ol className="text-xs text-muted space-y-1.5 list-decimal list-inside mb-3">
+                  <li>Tap "Add to Shortcuts" below to install the shortcut</li>
+                  <li>When prompted, paste your API token (shown above)</li>
+                  <li>On your lock screen: long-press → Customize</li>
+                  <li>Add the Shortcuts widget → select "Mirror Quick Log"</li>
+                  <li>Tap it anytime to instantly log your next pending habit</li>
+                </ol>
+                <a
+                  href="https://www.icloud.com/shortcuts/CREATE_YOUR_SHORTCUT_LINK"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-btn text-xs font-medium hover:bg-accent/90 transition-colors"
+                >
+                  Add to Shortcuts ↗
+                </a>
+                <p className="text-[10px] text-muted italic mt-2">
+                  Shortcut runs in background. You'll see a notification confirming the habit was logged.
                 </p>
               </div>
 
