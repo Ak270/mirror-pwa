@@ -158,19 +158,14 @@ export async function POST(request: NextRequest) {
           JSON.stringify({
             title: notificationContent.title,
             body: notificationContent.body,
-            icon: '/icons/icon-192.png',
-            badge: '/icons/badge-72.png',
+            icon: '/icons/icon-192.svg',
+            badge: '/icons/badge-72.svg',
+            url: `/log?habit_id=${habit.id}`,
+            tag: `habit-reminder-${habit.id}`,
             data: {
-              url: `/log?habit_id=${habit.id}`,
               habit_id: habit.id,
               habit_name: habit.name
-            },
-            actions: [
-              { action: 'done', title: '✓ Done' },
-              { action: 'open', title: 'Open Mirror' }
-            ],
-            tag: `habit-reminder-${habit.id}`,
-            renotify: true
+            }
           })
         )
         
