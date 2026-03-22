@@ -75,40 +75,45 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  
-  const urlToOpen = event.notification.data?.url || '/log'
-  
-  // Handle action buttons
-  if (event.action === 'done') {
-    // TODO: Could POST to /api/habits/checkin with API token from notification data
-    // For now, just open to log page
+
+  const data = event.notification.data || {}
+  const action = event.action
+  const urlToOpen = data.url || '/log'
+
+  // If user tapped an action button AND we have a reply endpoint → fire-and-forget, NO app open
+  if (action && data.reply_endpoint && data.habit_id) {
     event.waitUntil(
-      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-        for (const client of clientList) {
-          if ('focus' in client) {
-            return client.focus().then(() => client.navigate(urlToOpen))
-          }
-        }
-        if (clients.openWindow) {
-          return clients.openWindow(urlToOpen)
-        }
-      })
+      fetch(data.reply_endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + (data.token || ''),
+        },
+        body: JSON.stringify({
+          habit_id: data.habit_id,
+          action: action,
+          action_type: data.action_type || 'timed_reminder',
+          context: { time: new Date().toISOString() },
+        }),
+      }).catch((err) => console.error('[SW] Reply fetch failed:', err))
     )
-  } else {
-    // Default action or 'open' action
-    event.waitUntil(
-      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-        for (const client of clientList) {
-          if ('focus' in client) {
-            return client.focus().then(() => client.navigate(urlToOpen))
-          }
-        }
-        if (clients.openWindow) {
-          return clients.openWindow(urlToOpen)
-        }
-      })
-    )
+    // Do NOT open app — reply is handled silently
+    return
   }
+
+  // No action button (user tapped notification body) → open app
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          return client.focus().then(() => client.navigate(urlToOpen))
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen)
+      }
+    })
+  )
 })
 
 // Widget event handlers for Android PWA widgets

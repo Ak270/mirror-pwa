@@ -71,6 +71,15 @@ export default function OnboardingPage() {
           display_type: 'binary',
           is_vault: false,
           archived: false,
+          check_in_interval_minutes: habitCategory === 'break_free' ? 120 : null,
+          daily_reduction_goal: null,
+          daily_reduction_unit: null,
+          yesterday_baseline: null,
+          daily_target: null,
+          daily_target_unit: null,
+          reminder_interval_minutes: null,
+          reminder_start_time: null,
+          reminder_end_time: null,
         })
         console.log('Habit creation result:', habitResult)
       }

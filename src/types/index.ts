@@ -29,8 +29,46 @@ export interface Habit {
   display_type: 'binary' | 'counter' | 'streak'
   is_vault: boolean
   archived: boolean
+  // AI Companion fields
+  check_in_interval_minutes: number | null
+  daily_reduction_goal: number | null
+  daily_reduction_unit: string | null
+  reminder_interval_minutes: number | null
+  reminder_start_time: string | null
+  reminder_end_time: string | null
+  daily_target: number | null
+  daily_target_unit: string | null
+  yesterday_baseline: number | null
   created_at: string
   updated_at: string
+}
+
+export interface DailyQuantityLog {
+  id: string
+  user_id: string
+  habit_id: string
+  date: string
+  entries: Array<{ time: string; amount: number; unit: string; groq_reaction?: string }>
+  running_total: number
+  daily_target: number | null
+  goal_met: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface NotificationConversation {
+  id: string
+  user_id: string
+  habit_id: string | null
+  date: string
+  sent_at: string
+  groq_message: string | null
+  user_action: string | null
+  user_text_reply: string | null
+  groq_follow_up: string | null
+  running_total_at_time: number | null
+  notification_type: string | null
+  created_at: string
 }
 
 export interface CheckIn {

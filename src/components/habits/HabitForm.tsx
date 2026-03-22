@@ -57,6 +57,22 @@ export default function HabitForm({ existing, defaultCategory }: HabitFormProps)
   const [error, setError] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
 
+  // Break-free fields
+  const [checkInInterval, setCheckInInterval] = useState<number>(existing?.check_in_interval_minutes ?? 120)
+  const [dailyReductionGoal, setDailyReductionGoal] = useState(existing?.daily_reduction_goal?.toString() ?? '')
+  const [dailyReductionUnit, setDailyReductionUnit] = useState(existing?.daily_reduction_unit ?? '')
+  const [yesterdayBaseline, setYesterdayBaseline] = useState(existing?.yesterday_baseline?.toString() ?? '')
+
+  // Quantifiable fields
+  const [dailyTarget, setDailyTarget] = useState(existing?.daily_target?.toString() ?? '')
+  const [dailyTargetUnit, setDailyTargetUnit] = useState(existing?.daily_target_unit ?? '')
+  const [reminderInterval, setReminderInterval] = useState<number>(existing?.reminder_interval_minutes ?? 60)
+  const [reminderStartTime, setReminderStartTime] = useState(existing?.reminder_start_time ?? '08:00')
+  const [reminderEndTime, setReminderEndTime] = useState(existing?.reminder_end_time ?? '20:00')
+
+  const isBreakFree = categoryId === 'break_free'
+  const isQuantifiable = dailyTarget !== '' && !isBreakFree
+
   const filteredSuggestions = getHabitSuggestions(name, 15)
 
   // Auto-select icon based on habit name
@@ -85,13 +101,24 @@ export default function HabitForm({ existing, defaultCategory }: HabitFormProps)
       icon_emoji: emoji,
       why_anchor: whyAnchor.trim() || null,
       frequency,
-      reminder_time: reminderTime || null,
+      reminder_time: isBreakFree || isQuantifiable ? null : (reminderTime || null),
       habit_type: categoryId === 'break_free' ? 'break' as const : categoryId === 'rhythm' ? 'rhythm' as const : 'build' as const,
       goal_value: null,
       goal_unit: null,
-      display_type: 'binary' as const,
+      display_type: isQuantifiable ? 'counter' as const : 'binary' as const,
       is_vault: false,
       archived: false,
+      // Break-free fields
+      check_in_interval_minutes: isBreakFree ? checkInInterval : null,
+      daily_reduction_goal: isBreakFree && dailyReductionGoal ? parseFloat(dailyReductionGoal) : null,
+      daily_reduction_unit: isBreakFree && dailyReductionUnit ? dailyReductionUnit : null,
+      yesterday_baseline: isBreakFree && yesterdayBaseline ? parseFloat(yesterdayBaseline) : null,
+      // Quantifiable fields
+      daily_target: isQuantifiable && dailyTarget ? parseFloat(dailyTarget) : null,
+      daily_target_unit: isQuantifiable && dailyTargetUnit ? dailyTargetUnit : null,
+      reminder_interval_minutes: isQuantifiable ? reminderInterval : null,
+      reminder_start_time: isQuantifiable ? reminderStartTime : null,
+      reminder_end_time: isQuantifiable ? reminderEndTime : null,
     }
 
     if (existing) {
@@ -223,19 +250,103 @@ export default function HabitForm({ existing, defaultCategory }: HabitFormProps)
         </div>
       </div>
 
-      {/* Reminder */}
-      <div>
-        <label className="mirror-label" htmlFor="reminder">
-          Daily reminder <span className="font-normal text-muted">(optional)</span>
-        </label>
-        <input
-          id="reminder"
-          type="time"
-          value={reminderTime}
-          onChange={e => setReminderTime(e.target.value)}
-          className="mirror-input"
-        />
-      </div>
+      {/* Break-free: check-in settings */}
+      {isBreakFree && (
+        <div className="space-y-4 p-4 rounded-card border border-slip/20 bg-slip-light/30">
+          <p className="text-sm font-semibold text-slip">Break Free settings</p>
+
+          <div>
+            <label className="mirror-label">How often should Mirror check in?</label>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {[{v:60,l:'Every 1 hour'},{v:120,l:'Every 2 hours'},{v:180,l:'Every 3 hours'},{v:240,l:'Every 4 hours'},{v:720,l:'Twice daily'}].map(opt => (
+                <button key={opt.v} type="button" onClick={() => setCheckInInterval(opt.v)}
+                  className={`chip transition-all ${checkInInterval === opt.v ? 'chip-brand' : 'border-brand/15 text-muted hover:border-accent hover:text-brand'}`}>
+                  {opt.l}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mirror-label" htmlFor="reduction-goal">Daily max goal <span className="font-normal text-muted">(optional)</span></label>
+              <input id="reduction-goal" type="number" min="0" step="0.5" value={dailyReductionGoal}
+                onChange={e => setDailyReductionGoal(e.target.value)}
+                placeholder="e.g. 3" className="mirror-input" />
+            </div>
+            <div>
+              <label className="mirror-label" htmlFor="reduction-unit">Unit</label>
+              <input id="reduction-unit" type="text" value={dailyReductionUnit}
+                onChange={e => setDailyReductionUnit(e.target.value)}
+                placeholder="e.g. cigarettes" className="mirror-input" />
+            </div>
+          </div>
+
+          <div>
+            <label className="mirror-label" htmlFor="yesterday-baseline">How many yesterday? <span className="font-normal text-muted">(helps Mirror celebrate progress)</span></label>
+            <input id="yesterday-baseline" type="number" min="0" step="0.5" value={yesterdayBaseline}
+              onChange={e => setYesterdayBaseline(e.target.value)}
+              placeholder="e.g. 6" className="mirror-input" />
+          </div>
+        </div>
+      )}
+
+      {/* Quantifiable: target + interval settings */}
+      {!isBreakFree && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mirror-label" htmlFor="daily-target">Daily target <span className="font-normal text-muted">(optional)</span></label>
+              <input id="daily-target" type="number" min="0" step="0.5" value={dailyTarget}
+                onChange={e => setDailyTarget(e.target.value)}
+                placeholder="e.g. 8" className="mirror-input" />
+            </div>
+            <div>
+              <label className="mirror-label" htmlFor="target-unit">Unit</label>
+              <input id="target-unit" type="text" value={dailyTargetUnit}
+                onChange={e => setDailyTargetUnit(e.target.value)}
+                placeholder="e.g. glasses" className="mirror-input" />
+            </div>
+          </div>
+
+          {isQuantifiable && (
+            <div className="space-y-4 p-4 rounded-card border border-accent/20 bg-accent-light/30">
+              <p className="text-sm font-semibold text-accent">Reminder schedule</p>
+              <div>
+                <label className="mirror-label">Remind me every</label>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {[{v:30,l:'30 min'},{v:45,l:'45 min'},{v:60,l:'1 hour'},{v:120,l:'2 hours'}].map(opt => (
+                    <button key={opt.v} type="button" onClick={() => setReminderInterval(opt.v)}
+                      className={`chip transition-all ${reminderInterval === opt.v ? 'chip-brand' : 'border-brand/15 text-muted hover:border-accent hover:text-brand'}`}>
+                      {opt.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mirror-label" htmlFor="start-time">Start reminders</label>
+                  <input id="start-time" type="time" value={reminderStartTime}
+                    onChange={e => setReminderStartTime(e.target.value)} className="mirror-input" />
+                </div>
+                <div>
+                  <label className="mirror-label" htmlFor="end-time">Stop reminders</label>
+                  <input id="end-time" type="time" value={reminderEndTime}
+                    onChange={e => setReminderEndTime(e.target.value)} className="mirror-input" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!isQuantifiable && (
+            <div>
+              <label className="mirror-label" htmlFor="reminder">Daily reminder <span className="font-normal text-muted">(optional)</span></label>
+              <input id="reminder" type="time" value={reminderTime}
+                onChange={e => setReminderTime(e.target.value)} className="mirror-input" />
+            </div>
+          )}
+        </div>
+      )}
 
       {error && (
         <div className="bg-slip-light text-slip text-sm px-4 py-3 rounded-btn">{error}</div>
