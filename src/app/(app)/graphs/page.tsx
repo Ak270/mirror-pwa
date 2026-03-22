@@ -7,6 +7,7 @@ import type { Habit, CheckIn } from '@/types'
 import HeatmapCalendar from '@/components/graphs/HeatmapCalendar'
 import TrendLine from '@/components/graphs/TrendLine'
 import CorrelationPanel from '@/components/graphs/CorrelationPanel'
+import FailurePatternInsight from '@/components/graphs/FailurePatternInsight'
 import { getCategoryColor } from '@/lib/utils'
 
 export default function GraphsPage() {
@@ -126,6 +127,16 @@ export default function GraphsPage() {
           {/* Frequency by day of week */}
           {checkIns.length >= 7 && (
             <DayOfWeekChart checkIns={checkIns} />
+          )}
+
+          {/* Failure pattern insights */}
+          {checkIns.length >= 14 && (
+            <FailurePatternInsight 
+              habitName={selected.name}
+              checkIns={checkIns}
+              allHabits={habits.map(h => ({ id: h.id, name: h.name }))}
+              allCheckIns={allCheckIns}
+            />
           )}
 
           {/* Correlations */}

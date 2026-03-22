@@ -88,13 +88,14 @@ export default function DashboardPage() {
   return (
     <div className="max-w-xl mx-auto px-4 pt-8 pb-6">
       {/* Greeting */}
-      <div className="mb-8">
-        <p className="font-mono text-xs text-muted uppercase tracking-widest mb-2">{dateLabel}</p>
-        <h1 className="font-display text-brand font-light text-3xl tracking-tight">
+      <div className="mb-8 animate-fade-in">
+        <p className="font-mono text-xs text-text-tertiary uppercase tracking-widest mb-2">{dateLabel}</p>
+        <h1 className="font-display text-brand font-light text-[32px] leading-tight tracking-tight">
           {greeting}
         </h1>
         {allDone && (
-          <p className="text-success text-sm mt-2 font-medium">
+          <p className="text-success text-sm mt-2 font-medium flex items-center gap-2">
+            <span className="inline-block w-2 h-2 bg-success rounded-full animate-pulse" />
             Everything logged today.
           </p>
         )}
@@ -190,10 +191,13 @@ export default function DashboardPage() {
 
       {/* AI insight */}
       {insight && (
-        <div className="mb-5 px-4 py-3 bg-surface border border-accent/20 rounded-card">
-          <p className="font-mono text-[10px] text-accent uppercase tracking-widest mb-1">Mirror</p>
-          <p className="font-display text-brand text-sm font-light leading-relaxed italic">
-            &ldquo;{insight}&rdquo;
+        <div className="mb-5 px-4 py-4 bg-[#F8F8FC] border-l-[3px] border-l-brand rounded-card">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-base">🪞</span>
+            <p className="font-mono text-[10px] text-brand uppercase tracking-widest">Mirror says</p>
+          </div>
+          <p className="font-display text-brand text-[15px] font-light leading-relaxed italic">
+            {insight}
           </p>
         </div>
       )}

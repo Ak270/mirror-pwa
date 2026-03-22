@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { getProfile, upsertProfile } from '@/lib/habits'
 import { subscribeToPush, saveSubscriptionToServer, requestNotificationPermission } from '@/lib/notifications'
 import type { Profile } from '@/types'
-import { Bell, Download, LogOut, User, Shield, Smartphone, Copy, Check as CheckIcon } from 'lucide-react'
+import { Bell, Download, LogOut, User, Shield, Smartphone, Copy, Check as CheckIcon, Sun, Moon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 export default function ProfilePage() {
@@ -23,6 +23,7 @@ export default function ProfilePage() {
   const [isAnonymous, setIsAnonymous] = useState(false)
   const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null)
   const [upgrading, setUpgrading] = useState(false)
+  const [darkMode, setDarkMode] = useState(false)
 
   const loadProfile = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -49,6 +50,10 @@ export default function ProfilePage() {
     }
     const { data: { session } } = await supabase.auth.getSession()
     setAccessToken(session?.access_token ?? null)
+    
+    // Check dark mode preference
+    const theme = localStorage.getItem('mirror-theme') || 'light'
+    setDarkMode(theme === 'dark')
   }, [supabase])
 
   useEffect(() => { loadProfile() }, [loadProfile])
@@ -123,6 +128,18 @@ export default function ProfilePage() {
     // Redirect to login page to create permanent account
     // The migration will happen after they sign up
     router.push('/login?upgrade=true')
+  }
+
+  function toggleDarkMode() {
+    const newMode = !darkMode
+    setDarkMode(newMode)
+    localStorage.setItem('mirror-theme', newMode ? 'dark' : 'light')
+    
+    if (newMode) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
   }
 
   return (
@@ -361,6 +378,39 @@ export default function ProfilePage() {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Appearance */}
+      <div className="mirror-card p-5 mb-4">
+        <div className="flex items-center gap-2 mb-4">
+          {darkMode ? <Moon className="w-4 h-4 text-accent" /> : <Sun className="w-4 h-4 text-accent" />}
+          <h2 className="font-semibold text-brand text-sm">Appearance</h2>
+        </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-brand">Dark mode</p>
+            <p className="text-xs text-muted mt-0.5">Easier on the eyes at night</p>
+          </div>
+          <button
+            onClick={toggleDarkMode}
+            className={`relative w-14 h-8 rounded-full transition-all duration-300 ${
+              darkMode ? 'bg-accent' : 'bg-gray-300'
+            }`}
+            aria-label="Toggle dark mode"
+          >
+            <div
+              className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300 flex items-center justify-center ${
+                darkMode ? 'translate-x-6' : 'translate-x-0'
+              }`}
+            >
+              {darkMode ? (
+                <Moon className="w-3.5 h-3.5 text-accent" />
+              ) : (
+                <Sun className="w-3.5 h-3.5 text-amber" />
+              )}
+            </div>
+          </button>
         </div>
       </div>
 
