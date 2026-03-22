@@ -68,25 +68,44 @@ export default function GraphsPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 pt-8 pb-6">
-      <h1 className="font-display text-brand font-light text-2xl mb-6">Your patterns</h1>
+      <div className="mb-6">
+        <h1 className="font-display text-brand font-light text-3xl mb-1">Your patterns</h1>
+        <p className="text-text-secondary text-sm">
+          {(() => {
+            const totalCheckIns = Object.values(allCheckIns).reduce((sum, cis) => sum + cis.length, 0)
+            const totalHabits = habits.length
+            const completionRate = totalCheckIns > 0 
+              ? Math.round((Object.values(allCheckIns).reduce((sum, cis) => 
+                  sum + cis.filter(ci => ci.status === 'done' || ci.status === 'partial').length, 0
+                ) / totalCheckIns) * 100)
+              : 0
+            return `${completionRate}% across ${totalHabits} habit${totalHabits !== 1 ? 's' : ''} this period`
+          })()}
+        </p>
+      </div>
 
-      {/* Habit selector */}
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-1 -mx-1 px-1">
+      {/* Habit selector - Icon only to prevent truncation */}
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
         {habits.map(h => (
           <button
             key={h.id}
             onClick={() => selectHabit(h.id)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-btn border text-sm flex-shrink-0 transition-all duration-150 ${
+            title={h.name}
+            className={`flex items-center justify-center w-11 h-9 rounded-btn border text-lg flex-shrink-0 transition-all duration-150 ${
               selectedId === h.id
-                ? 'border-accent bg-accent-light text-brand font-semibold'
-                : 'border-brand/15 text-muted hover:border-accent hover:text-brand'
+                ? 'border-brand bg-brand text-white'
+                : 'border-border bg-surface text-muted hover:border-accent hover:bg-accent-light'
             }`}
           >
-            <span className="text-base">{h.icon_emoji}</span>
-            <span className="truncate max-w-[120px]">{h.name}</span>
+            <span className={selectedId === h.id ? 'opacity-100' : 'opacity-70'}>{h.icon_emoji}</span>
           </button>
         ))}
       </div>
+
+      {/* Selected habit name */}
+      {selected && (
+        <h2 className="font-display text-brand text-xl mb-6">{selected.name}</h2>
+      )}
 
       {selected && (
         <div className="space-y-5">

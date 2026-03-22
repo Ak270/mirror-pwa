@@ -133,7 +133,7 @@ export interface CorrelationResult {
   correlation_coefficient: number
   sample_size: number
   is_significant: boolean
-  confidence: 'low' | 'medium' | 'high'
+  confidence: 'weak' | 'low' | 'medium' | 'high'
   direction: 'positive' | 'negative' | 'none'
   rate_when_a_done: number
   rate_when_a_not_done: number

@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from 'next'
-import { Fraunces, DM_Sans, DM_Mono } from 'next/font/google'
+import { DM_Serif_Display, DM_Sans, DM_Mono } from 'next/font/google'
 import './globals.css'
 
-const fraunces = Fraunces({
+const dmSerifDisplay = DM_Serif_Display({
   subsets: ['latin'],
-  weight: ['300', '400', '600'],
+  weight: ['400'],
   style: ['normal', 'italic'],
-  variable: '--font-fraunces',
+  variable: '--font-dm-serif-display',
   display: 'swap',
 })
 
@@ -53,7 +53,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${dmSans.variable} ${dmMono.variable}`}>
+    <html lang="en" className={`${dmSerifDisplay.variable} ${dmSans.variable} ${dmMono.variable}`}>
       <head>
         <script
           dangerouslySetInnerHTML={{

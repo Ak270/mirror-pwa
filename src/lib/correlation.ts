@@ -18,7 +18,7 @@ export function computeCorrelations(
 
   const n = sharedDates.length
 
-  if (n < 30) {
+  if (n < 14) {
     return noResult(habitAId, habitAName, habitBId, habitBName)
   }
 
@@ -48,9 +48,10 @@ export function computeCorrelations(
     }
   }
 
-  const r = pearsonCorrelation(x, y)
+  // Use Phi coefficient for binary data (more accurate than Pearson for done/not-done)
+  const r = phiCoefficient(x, y)
   const absR = Math.abs(r)
-  const isSignificant = absR >= 0.3 && n >= 30
+  const isSignificant = absR >= 0.2 && n >= 14
 
   const rateWhenADone = rateWhenADoneDenominator > 0
     ? (rateWhenADoneNumerator / rateWhenADoneDenominator) * 100
@@ -59,7 +60,7 @@ export function computeCorrelations(
     ? (rateWhenANotDoneNumerator / rateWhenANotDoneDenominator) * 100
     : 0
 
-  const confidence = absR >= 0.6 ? 'high' : absR >= 0.4 ? 'medium' : 'low'
+  const confidence = absR >= 0.5 ? 'high' : absR >= 0.3 ? 'medium' : absR >= 0.15 ? 'low' : 'weak'
   const direction = r > 0.05 ? 'positive' : r < -0.05 ? 'negative' : 'none'
 
   const insight_copy = buildInsightCopy(
@@ -84,6 +85,29 @@ export function computeCorrelations(
     rate_when_a_not_done: rateWhenANotDone,
     insight_copy,
   }
+}
+
+// Phi coefficient - better for binary data (done/not-done) than Pearson
+function phiCoefficient(x: number[], y: number[]): number {
+  const n = x.length
+  if (n === 0) return 0
+
+  let n11 = 0 // both 1
+  let n10 = 0 // x=1, y=0
+  let n01 = 0 // x=0, y=1
+  let n00 = 0 // both 0
+
+  for (let i = 0; i < n; i++) {
+    if (x[i] === 1 && y[i] === 1) n11++
+    else if (x[i] === 1 && y[i] === 0) n10++
+    else if (x[i] === 0 && y[i] === 1) n01++
+    else n00++
+  }
+
+  const numerator = (n11 * n00) - (n10 * n01)
+  const denominator = Math.sqrt((n11 + n10) * (n01 + n00) * (n11 + n01) * (n10 + n00))
+  
+  return denominator === 0 ? 0 : numerator / denominator
 }
 
 function pearsonCorrelation(x: number[], y: number[]): number {

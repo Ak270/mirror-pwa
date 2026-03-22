@@ -133,18 +133,58 @@ export default function DashboardPage() {
 
       {/* Completion ring + stats */}
       {total > 0 && (
-        <div className="mirror-card p-5 flex items-center gap-5 mb-6">
-          <CompletionRing logged={logged} total={total} />
-          <div>
-            <p className="text-brand font-semibold">
-              {logged === 0
-                ? 'Today is still open.'
-                : logged === total
-                ? 'You showed up today.'
-                : `${total - logged} habit${total - logged !== 1 ? 's' : ''} remaining.`}
-            </p>
-            <p className="text-muted text-sm mt-1">No rush.</p>
+        <div className="mirror-card p-5 mb-6">
+          <div className="flex items-center gap-5">
+            <CompletionRing logged={logged} total={total} />
+            <div className="flex-1">
+              <p className="text-brand font-semibold">
+                {logged === 0
+                  ? 'Today is still open.'
+                  : logged === total
+                  ? 'You showed up today.'
+                  : `${total - logged} habit${total - logged !== 1 ? 's' : ''} remaining.`}
+              </p>
+              <p className="text-muted text-sm mt-1">No rush.</p>
+            </div>
           </div>
+
+          {/* Show pending habit(s) */}
+          {logged < total && (() => {
+            const pending = habits.filter(h => h.today_status === null)
+            if (pending.length === 1) {
+              const habit = pending[0]
+              return (
+                <div className="mt-4 pt-4 border-t border-border flex items-center gap-3">
+                  <span className="text-2xl">{habit.icon_emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-text-primary truncate">{habit.name}</p>
+                    <p className="text-xs text-text-tertiary">Still pending</p>
+                  </div>
+                  <Link
+                    href="/log"
+                    className="px-4 py-2 bg-brand text-white text-sm font-medium rounded-btn hover:bg-opacity-90 transition-all flex-shrink-0"
+                  >
+                    Log it →
+                  </Link>
+                </div>
+              )
+            } else if (pending.length <= 3) {
+              return (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <p className="text-xs text-text-tertiary mb-2">{pending.length} remaining:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {pending.map(h => (
+                      <div key={h.id} className="flex items-center gap-1.5 px-2 py-1 bg-surface-elevated rounded-sm">
+                        <span className="text-sm">{h.icon_emoji}</span>
+                        <span className="text-xs text-text-secondary">{h.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            }
+            return null
+          })()}
         </div>
       )}
 
