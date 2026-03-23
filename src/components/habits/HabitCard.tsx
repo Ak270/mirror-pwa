@@ -219,7 +219,7 @@ export default function HabitCard({ habit, onStatusChange, onQuantityAdd, showLi
             {/* Center button */}
             <button
               onClick={(e) => {
-                if (isQuantifiable && !status) {
+                if (isQuantifiable) {
                   handleUpdateState(e)
                 } else if (isLeaveHabit) {
                   handleQuickLog(e, status === 'done' ? 'skip' : 'done')
@@ -230,12 +230,12 @@ export default function HabitCard({ habit, onStatusChange, onQuantityAdd, showLi
               disabled={habit.today_status !== null && !isQuantifiable}
               className="absolute inset-0 flex items-center justify-center rounded-full hover:bg-gray-50 transition-colors"
             >
-              {status === 'done' ? (
+              {isQuantifiable ? (
+                <Plus className="w-4 h-4 text-brand" />
+              ) : status === 'done' ? (
                 <Check className="w-4 h-4 text-success" />
               ) : status === 'honest_slip' ? (
                 <span className="text-sm text-amber-600">~</span>
-              ) : isQuantifiable ? (
-                <Plus className="w-4 h-4 text-brand" />
               ) : (
                 <span className="text-[10px] font-mono font-bold text-brand">{Math.round(progress.percent)}%</span>
               )}
