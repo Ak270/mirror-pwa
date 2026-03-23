@@ -7,7 +7,9 @@ import { getTimeOfDay, getGreeting, formatDate } from '@/lib/utils'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import LivingProgressRing from '@/components/dashboard/LivingProgressRing'
 import ReentryBanner from '@/components/dashboard/ReentryBanner'
+import TimeBasedProgressRing from '@/components/dashboard/TimeBasedProgressRing'
 import HabitCard from '@/components/habits/HabitCard'
+import QuantifiableHabitCard from '@/components/habits/QuantifiableHabitCard'
 import type { HabitWithStatus, CheckInStatus, Profile } from '@/types'
 import Link from 'next/link'
 import { Plus, BookOpen } from 'lucide-react'
@@ -277,14 +279,92 @@ export default function DashboardPage() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-3">
-          {habits.map(habit => (
-            <HabitCard
-              key={habit.id}
-              habit={habit}
-              onStatusChange={handleStatusChange}
-            />
-          ))}
+        <div className="space-y-6">
+          {/* Leave Habits - Time-based Progress */}
+          {(() => {
+            const leaveHabits = habits.filter(h => h.intent === 'leave')
+            if (leaveHabits.length === 0) return null
+            
+            return (
+              <div>
+                <h2 className="text-sm font-semibold text-brand mb-3">Breaking Free</h2>
+                <div className="space-y-3">
+                  {leaveHabits.map(habit => (
+                    <TimeBasedProgressRing
+                      key={habit.id}
+                      habitName={habit.name}
+                      habitIcon={habit.icon_emoji}
+                      dayStartTime={profile?.day_start_time || '06:00'}
+                      dayEndTime={profile?.day_end_time || '22:00'}
+                      lastCheckInStatus={
+                        habit.today_status === 'done' ? 'held_on' : 
+                        habit.today_status === 'honest_slip' ? 'had_moment' : 
+                        null
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Quantifiable Habits - Cumulative Progress */}
+          {(() => {
+            const quantifiableHabits = habits.filter(h => h.goal_value && h.intent !== 'leave')
+            if (quantifiableHabits.length === 0) return null
+            
+            return (
+              <div>
+                <h2 className="text-sm font-semibold text-brand mb-3">Daily Goals</h2>
+                <div className="space-y-3">
+                  {quantifiableHabits.map(habit => {
+                    const todayTotal = habit.check_ins
+                      ?.filter(c => c.date === new Date().toISOString().split('T')[0])
+                      .reduce((sum, c) => sum + (c.quantity || 0), 0) || 0
+                    
+                    return (
+                      <QuantifiableHabitCard
+                        key={habit.id}
+                        habit={habit}
+                        todayTotal={todayTotal}
+                        onAddQuantity={async (quantity) => {
+                          await supabase.from('check_ins').insert({
+                            user_id: habit.user_id,
+                            habit_id: habit.id,
+                            date: new Date().toISOString().split('T')[0],
+                            status: 'done',
+                            quantity: quantity
+                          })
+                          await loadData()
+                        }}
+                      />
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Regular Habits */}
+          {(() => {
+            const regularHabits = habits.filter(h => !h.goal_value && h.intent !== 'leave')
+            if (regularHabits.length === 0) return null
+            
+            return (
+              <div>
+                <h2 className="text-sm font-semibold text-brand mb-3">Daily Habits</h2>
+                <div className="space-y-3">
+                  {regularHabits.map(habit => (
+                    <HabitCard
+                      key={habit.id}
+                      habit={habit}
+                      onStatusChange={handleStatusChange}
+                    />
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
 
           <Link
             href="/habits/new"
