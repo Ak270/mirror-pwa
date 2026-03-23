@@ -97,26 +97,72 @@ export async function logCheckIn(
     quantifiable_value?: number | null
     quantifiable_unit?: string | null
     slip_note?: string | null
+    quantity?: number | null
   }
 ): Promise<{ data: CheckIn | null; error: Error | null }> {
   const date = format(new Date(), 'yyyy-MM-dd')
 
-  const { data, error } = await supabase
-    .from('check_ins')
-    .upsert({
-      user_id: userId,
-      habit_id: habitId,
-      date,
-      status,
-      note: options?.note ?? null,
-      quantifiable_value: options?.quantifiable_value ?? null,
-      quantifiable_unit: options?.quantifiable_unit ?? null,
-      slip_note: options?.slip_note ?? null,
-    }, { onConflict: 'habit_id,date' })
-    .select()
-    .single()
+  // For quantifiable habits with quantity, always insert new check-in (multiple per day allowed)
+  if (options?.quantity !== undefined && options.quantity !== null) {
+    const { data, error } = await supabase
+      .from('check_ins')
+      .insert({
+        user_id: userId,
+        habit_id: habitId,
+        date,
+        status,
+        quantity: options.quantity,
+        note: options?.note ?? null,
+        quantifiable_value: options?.quantifiable_value ?? null,
+        quantifiable_unit: options?.quantifiable_unit ?? null,
+      })
+      .select()
+      .single()
 
-  return { data, error: error as Error | null }
+    return { data, error: error as Error | null }
+  }
+
+  // For regular habits, check if check-in exists today
+  const { data: existing } = await supabase
+    .from('check_ins')
+    .select('id')
+    .eq('habit_id', habitId)
+    .eq('date', date)
+    .maybeSingle()
+
+  if (existing) {
+    // Update existing check-in
+    const { data, error } = await supabase
+      .from('check_ins')
+      .update({
+        status,
+        note: options?.note ?? null,
+        quantifiable_value: options?.quantifiable_value ?? null,
+        quantifiable_unit: options?.quantifiable_unit ?? null,
+      })
+      .eq('id', existing.id)
+      .select()
+      .single()
+
+    return { data, error: error as Error | null }
+  } else {
+    // Insert new check-in
+    const { data, error } = await supabase
+      .from('check_ins')
+      .insert({
+        user_id: userId,
+        habit_id: habitId,
+        date,
+        status,
+        note: options?.note ?? null,
+        quantifiable_value: options?.quantifiable_value ?? null,
+        quantifiable_unit: options?.quantifiable_unit ?? null,
+      })
+      .select()
+      .single()
+
+    return { data, error: error as Error | null }
+  }
 }
 
 export async function createHabit(

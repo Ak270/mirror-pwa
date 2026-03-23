@@ -292,7 +292,6 @@ export default function DashboardPage() {
                   {leaveHabits.map(habit => (
                     <TimeBasedProgressRing
                       key={habit.id}
-                      habitId={habit.id}
                       habitName={habit.name}
                       habitIcon={habit.icon_emoji}
                       dayStartTime={profile?.day_start_time || '06:00'}
@@ -302,10 +301,6 @@ export default function DashboardPage() {
                         habit.today_status === 'honest_slip' ? 'had_moment' : 
                         null
                       }
-                      onClick={() => {
-                        // Navigate to log page for this habit
-                        window.location.href = `/log?habit=${habit.id}`
-                      }}
                     />
                   ))}
                 </div>
