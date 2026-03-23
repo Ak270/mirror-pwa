@@ -39,6 +39,16 @@ export interface Habit {
   daily_target: number | null
   daily_target_unit: string | null
   yesterday_baseline: number | null
+  // Dopamine & Living Progress fields
+  intent: 'start' | 'leave' | null
+  addiction_level: number | null
+  origin_anchor: string | null
+  day1_letter: string | null
+  day1_letter_delivered: boolean | null
+  vulnerability_hour: number | null
+  banked_grace_days: number | null
+  grace_days_earned_total: number | null
+  last_grace_day_earned_at: string | null
   created_at: string
   updated_at: string
 }
@@ -78,6 +88,7 @@ export interface CheckIn {
   date: string
   status: CheckInStatus
   note: string | null
+  quantity: number | null
   quantifiable_value: number | null
   quantifiable_unit: string | null
   created_at: string
