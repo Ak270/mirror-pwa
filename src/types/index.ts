@@ -118,6 +118,10 @@ export interface Profile {
   timezone: string
   onboarding_completed: boolean
   selected_categories: CategoryId[]
+  day_start_time: string | null
+  day_end_time: string | null
+  energy_peak_time: string | null
+  energy_dip_time: string | null
   created_at: string
 }
 

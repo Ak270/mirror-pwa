@@ -122,6 +122,10 @@ export default function HabitForm({ existing, defaultCategory }: HabitFormProps)
       origin_anchor: isLeaveHabit && originAnchor.trim() ? originAnchor.trim() : null,
       day1_letter: isLeaveHabit && day1Letter.trim() ? day1Letter.trim() : null,
       day1_letter_delivered: false,
+      vulnerability_hour: null,
+      banked_grace_days: null,
+      grace_days_earned_total: null,
+      last_grace_day_earned_at: null,
       // Break-free fields
       check_in_interval_minutes: isBreakFree ? checkInInterval : null,
       daily_reduction_goal: isBreakFree && dailyReductionGoal ? parseFloat(dailyReductionGoal) : null,

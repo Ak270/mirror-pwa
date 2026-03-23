@@ -164,7 +164,7 @@ function buildPrompt(type: NotificationType, data: NotificationData): string {
 
 // Helper to build notification data from database records
 export async function buildNotificationData(
-  habit: Habit,
+  habit: Habit & { current_streak?: number; best_streak?: number },
   checkIns: CheckIn[],
   profile: { day_start_time: string; day_end_time: string }
 ): Promise<NotificationData> {
@@ -206,7 +206,7 @@ export async function buildNotificationData(
     ? Math.floor((now.getTime() - new Date(lastSlip.date).getTime()) / (1000 * 60 * 60 * 24))
     : undefined
   
-  // Calculate consecutive good days
+  // Calculate consecutive good days (current streak)
   let consecutiveGoodDays = 0
   const sortedCheckIns = [...checkIns].sort((a, b) => b.date.localeCompare(a.date))
   for (const checkIn of sortedCheckIns) {
@@ -223,10 +223,10 @@ export async function buildNotificationData(
   return {
     habit_name: habit.name,
     intent: habit.intent || 'start',
-    streak: habit.current_streak || 0,
-    best_streak: habit.best_streak || 0,
+    streak: habit.current_streak || consecutiveGoodDays,
+    best_streak: habit.best_streak || consecutiveGoodDays,
     days_since_start: Math.floor((now.getTime() - new Date(habit.created_at).getTime()) / (1000 * 60 * 60 * 24)),
-    addiction_level: habit.addiction_level,
+    addiction_level: habit.addiction_level ?? undefined,
     
     quantifiable: habit.goal_value ? {
       today_count: todayQuantity,
@@ -254,7 +254,7 @@ export async function buildNotificationData(
     },
     
     personal: {
-      origin_anchor: habit.origin_anchor,
+      origin_anchor: habit.origin_anchor ?? undefined,
       day1_letter_available: !!habit.day1_letter && !habit.day1_letter_delivered,
       feeling_score_yesterday: undefined // TODO: Fetch from daily_feelings
     }

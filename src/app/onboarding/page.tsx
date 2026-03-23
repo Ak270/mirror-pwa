@@ -80,6 +80,15 @@ export default function OnboardingPage() {
           reminder_interval_minutes: null,
           reminder_start_time: null,
           reminder_end_time: null,
+          intent: null,
+          addiction_level: null,
+          origin_anchor: null,
+          day1_letter: null,
+          day1_letter_delivered: null,
+          vulnerability_hour: null,
+          banked_grace_days: null,
+          grace_days_earned_total: null,
+          last_grace_day_earned_at: null,
         })
         console.log('Habit creation result:', habitResult)
       }
