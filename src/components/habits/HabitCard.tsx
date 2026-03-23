@@ -243,27 +243,37 @@ export default function HabitCard({ habit, onStatusChange, onQuantityAdd, showLi
           </div>
         ) : (
           <button
-            onClick={(e) => handleQuickLog(e, status === 'done' ? 'skip' : 'done')}
-            disabled={habit.today_status !== null}
+            onClick={(e) => {
+              if (isQuantifiable) {
+                handleUpdateState(e)
+              } else {
+                handleQuickLog(e, status === 'done' ? 'skip' : 'done')
+              }
+            }}
+            disabled={habit.today_status !== null && !isQuantifiable}
             className={`w-9 h-9 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-150 ${
-              habit.today_status !== null 
+              habit.today_status !== null && !isQuantifiable
                 ? 'opacity-40 cursor-not-allowed' 
                 : 'active:scale-95 hover:scale-105'
             } ${
               status ? STATUS_BUTTON_CLASSES[status] : STATUS_BUTTON_CLASSES.default
             }`}
-            aria-label={habit.today_status !== null ? 'Already logged today' : status === 'done' ? 'Mark as not done' : 'Mark as done'}
+            aria-label={isQuantifiable ? 'Add quantity' : habit.today_status !== null ? 'Already logged today' : status === 'done' ? 'Mark as not done' : 'Mark as done'}
           >
-            {status === 'done' && <Check className="w-4 h-4" />}
-            {status === 'partial' && (
+            {isQuantifiable ? (
+              <Plus className="w-4 h-4 text-brand" />
+            ) : status === 'done' ? (
+              <Check className="w-4 h-4" />
+            ) : status === 'partial' ? (
               <div
                 className="w-5 h-5 rounded-full"
                 style={{
                   background: 'linear-gradient(135deg, #0D9E75 50%, white 50%)',
                 }}
               />
-            )}
-            {status === 'honest_slip' && <span className="text-sm">~</span>}
+            ) : status === 'honest_slip' ? (
+              <span className="text-sm">~</span>
+            ) : null}
           </button>
         )}
       </div>
