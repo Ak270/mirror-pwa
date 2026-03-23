@@ -195,28 +195,28 @@ export const CATEGORY_COLORS: Record<CategoryId, { bg: string; text: string; bor
 }
 
 export const CHECK_IN_LABELS: Record<CategoryId, Record<CheckInStatus, string>> = {
+  build_up: {
+    done: 'I showed up',
+    partial: 'Part of it',
+    skip: 'Skip today',
+    honest_slip: 'Had a moment',
+  },
   break_free: {
     done: 'I held on today',
     partial: 'Mostly held on',
     skip: 'Taking a break from tracking',
-    honest_slip: 'I had a moment today',
-  },
-  build_up: {
-    done: 'I showed up',
-    partial: 'Part of it',
-    skip: 'Not today',
     honest_slip: 'I had a moment',
   },
   rhythm: {
-    done: 'On rhythm',
-    partial: 'Close enough',
-    skip: 'Off rhythm today',
-    honest_slip: 'Different day today',
+    done: 'I showed up',
+    partial: 'Part of it',
+    skip: 'Skip today',
+    honest_slip: 'Had a moment',
   },
   mind_spirit: {
     done: 'I showed up',
-    partial: 'A little',
-    skip: 'Quiet day',
-    honest_slip: 'Not quite today',
+    partial: 'Part of it',
+    skip: 'Skip today',
+    honest_slip: 'Had a moment',
   },
 }

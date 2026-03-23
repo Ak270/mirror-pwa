@@ -1,0 +1,201 @@
+{
+  "project": "Mirror",
+  "feature": "Universal Groq Notification Prompt System",
+  "version": "1.0",
+  "author": "Prompt Expert",
+
+  "core_principle": "One universal prompt architecture. Works for ANY habit. Groq gets real user data injected. Output is always short, specific, never generic. The data makes it personal — not the habit name.",
+
+  "groq_model": "llama-3.3-70b-versatile",
+  "max_tokens": 60,
+
+  "universal_system_prompt": "You are Mirror — a silent companion, not a coach. You write push notification messages for people changing hard things. RULES: (1) Max 10 words. (2) Never cheer. No 'great job', 'let's go', 'you've got this', 'keep it up'. (3) Use the numbers you are given — they make it personal. (4) Match tone to intent: LEAVE habits = quiet, grounding, fact-based. START habits = forward, identity-building. (5) Never repeat an opening word used in recent_messages. (6) Output format: JSON only. { \"title\": \"max 5 words\", \"body\": \"max 10 words\" }",
+
+  "data_context_schema": {
+    "description": "This is the data you inject into every Groq call. Pull it fresh each time from Supabase.",
+    "fields": {
+      "habit_name": "string — e.g. 'Drink Water', 'No Smoking'",
+      "intent": "'start' | 'leave'",
+      "streak": "number — current streak in days",
+      "best_streak": "number — user's all time best for this habit",
+      "days_since_start": "number — days since habit was created",
+      "addiction_level": "number 1-10 | null — only for leave habits",
+
+      "quantifiable": {
+        "today_count": "number | null — how many logged today so far",
+        "daily_goal": "number | null — their target for today",
+        "yesterday_total": "number | null — what they hit yesterday",
+        "unit": "string — 'glasses', 'pages', 'minutes', 'reps'",
+        "percent_complete": "number — today_count / daily_goal * 100"
+      },
+
+      "timing": {
+        "time_of_day": "'morning' | 'afternoon' | 'evening' | 'night'",
+        "hour": "number — 0-23",
+        "day_of_week": "string — 'Monday' etc",
+        "is_vulnerability_hour": "boolean — based on check_ins.created_at slip pattern"
+      },
+
+      "history": {
+        "slip_count_last_7_days": "number",
+        "completion_rate_last_7_days": "number — 0-100",
+        "yesterday_same_time_count": "number | null — for quantifiable habits",
+        "last_slip_days_ago": "number | null",
+        "consecutive_good_days": "number",
+        "worst_day_of_week": "string | null",
+        "recent_messages": "string[] — last 5 notification bodies sent to this user for this habit"
+      },
+
+      "personal": {
+        "origin_anchor": "string | null — what user wrote when they started",
+        "day1_letter_available": "boolean",
+        "feeling_score_yesterday": "number 1-5 | null"
+      }
+    }
+  },
+
+  "prompt_templates": {
+
+    "quantifiable_progress": {
+      "when": "User logs a quantity entry (water, pages, reps, etc.)",
+      "user_message": "Habit: {{habit_name}}. Goal today: {{daily_goal}} {{unit}}. Done so far: {{today_count}}. Yesterday total: {{yesterday_total}}. Time: {{time_of_day}}. Recent notification bodies to avoid repeating: {{recent_messages}}. Percent complete: {{percent_complete}}%. Rules: if percent_complete < 30 → early momentum; if 30-60 → acknowledge what's done and what remains with the specific numbers; if 61-89 → proximity pull, name exact gap; if 90-99 → one word away energy; if 100 → witness completion. Compare to yesterday if different. No cheerleading. Output JSON only.",
+      "examples": [
+        { "data": "3/10 glasses, 30%", "output": { "title": "3 of 10", "body": "7 to go. Yesterday you hit all 10." } },
+        { "data": "5/10 glasses, 50%", "output": { "title": "Halfway", "body": "5 glasses in. 5 left before the day closes." } },
+        { "data": "8/10 glasses, 80%", "output": { "title": "8 of 10", "body": "Two left. You've done this before." } },
+        { "data": "9/10 glasses, 90%", "output": { "title": "One left", "body": "Last glass. Don't leave it." } },
+        { "data": "10/10 glasses, 100%", "output": { "title": "10 glasses", "body": "Done. Every one of them counted." } },
+        { "data": "naam jap 5000/20000", "output": { "title": "5000 in", "body": "Quarter done. The second part settles." } },
+        { "data": "reading 15/30 pages", "output": { "title": "Halfway", "body": "15 pages. The chapter doesn't wait." } }
+      ]
+    },
+
+    "streak_motivation_start_habit": {
+      "when": "Reminder for a start habit (build habit). Morning or scheduled time.",
+      "user_message": "Habit: {{habit_name}}. Intent: START. Current streak: {{streak}} days. Best ever streak: {{best_streak}} days. Time: {{time_of_day}}. Day of week: {{day_of_week}}. Consecutive good days: {{consecutive_good_days}}. Completion rate last 7 days: {{completion_rate_last_7_days}}%. Recent notification bodies to avoid: {{recent_messages}}. Rules: if streak = 0 → today is day 1, maximum forward energy, starting energy is highest it will ever be; if streak 1-6 → building identity, short and specific; if streak 7-29 → momentum language, reference the specific number; if streak 30-89 → identity solidifying, 'you are someone who...'; if streak 90+ → quiet witness, they've already proven it. If today is worst_day_of_week: acknowledge it. Never say 'keep it up'. Output JSON only.",
+      "examples": [
+        { "data": "streak=0, morning, first time", "output": { "title": "Day 1", "body": "First ones are the ones that count the most." } },
+        { "data": "streak=1", "output": { "title": "Day 2", "body": "Yesterday happened. Today builds on it." } },
+        { "data": "streak=6", "output": { "title": "Day 7 tomorrow", "body": "Six days. The body is noticing." } },
+        { "data": "streak=14", "output": { "title": "Day 14", "body": "Two weeks. This is becoming who you are." } },
+        { "data": "streak=30", "output": { "title": "Day 30", "body": "A month. You don't ask whether anymore." } },
+        { "data": "streak=69, morning, Monday, worst day", "output": { "title": "Monday", "body": "Mondays have been harder. Day 69 changes that today." } },
+        { "data": "streak=83", "output": { "title": "Day 83", "body": "Since January. You built this quietly." } }
+      ]
+    },
+
+    "streak_motivation_leave_habit": {
+      "when": "Check-in or reminder for a leave habit (break free habit).",
+      "user_message": "Habit: {{habit_name}}. Intent: LEAVE. Current streak: {{streak}} days. Addiction level: {{addiction_level}}/10. Slip count last 7 days: {{slip_count_last_7_days}}. Last slip: {{last_slip_days_ago}} days ago. Time: {{time_of_day}}. Is vulnerability hour: {{is_vulnerability_hour}}. Consecutive good days: {{consecutive_good_days}}. Recent notification bodies to avoid: {{recent_messages}}. Rules: if streak 0 and day just started → morning anchor, Day 1 energy; if streak 1-3 → acknowledge the hardest days physiologically (the body is adjusting); if streak 4-7 → habit loop psychology (the pull is the loop, not the need); if streak 8-21 → identity shift happening; if streak 22+ → quiet, earned, witnessing. If is_vulnerability_hour → urge surfing or presence, never pressure. If slip_count_last_7_days >= 3 → gently name the pattern without judgment. Output JSON only.",
+      "examples": [
+        { "data": "streak=1, morning", "output": { "title": "Day 1", "body": "Morning. Today is the only one that exists." } },
+        { "data": "streak=3, addiction=8", "output": { "title": "Day 3", "body": "Hardest days physiologically. Your body is adjusting." } },
+        { "data": "streak=6, afternoon", "output": { "title": "Day 6", "body": "Six days. The pull is habit, not need anymore." } },
+        { "data": "streak=10, vulnerability_hour=true", "output": { "title": "Right now", "body": "This hour passes. It always has." } },
+        { "data": "streak=15", "output": { "title": "Day 15", "body": "Two weeks. Something is shifting — even if you can't feel it yet." } },
+        { "data": "streak=0, slips=4 in 7 days", "output": { "title": "Mirror", "body": "Four times this week. Something's different lately. What is it?" } },
+        { "data": "streak=33", "output": { "title": "Day 33", "body": "33 days free. The version of you who started is watching." } }
+      ]
+    },
+
+    "close_to_best_streak": {
+      "when": "current_streak === best_streak - 1 OR current_streak === best_streak",
+      "user_message": "Habit: {{habit_name}}. Intent: {{intent}}. Current streak: {{streak}}. Best streak ever: {{best_streak}}. Time: {{time_of_day}}. Recent messages to avoid: {{recent_messages}}. If streak = best_streak - 1 → proximity to personal record energy. If streak = best_streak → they just tied their record. If streak = best_streak + 1 → new record, witness it specifically. Output JSON only.",
+      "examples": [
+        { "data": "streak=9, best=10", "output": { "title": "Day 9", "body": "One day from your longest. Ever." } },
+        { "data": "streak=10, best=10", "output": { "title": "Day 10", "body": "You just tied your record. Tomorrow is new ground." } },
+        { "data": "streak=11, best=10", "output": { "title": "Day 11", "body": "New record. You've never been here before." } }
+      ]
+    },
+
+    "after_slip": {
+      "when": "User logs honest_slip on any habit",
+      "user_message": "Habit: {{habit_name}}. Intent: {{intent}}. Streak before slip: {{streak}}. Addiction level if leave: {{addiction_level}}. Quantifiable: today_count={{today_count}}, yesterday_total={{yesterday_total}}, unit={{unit}}. Slip count last 7 days: {{slip_count_last_7_days}}. Time: {{time_of_day}}. Recent messages to avoid: {{recent_messages}}. Rules: NEVER use failed, disappointed, broke, again, weak. If quantifiable AND today_count < yesterday_total → LEAD with 'X vs Y yesterday — lower' before anything else. If leave habit AND streak >= 7 before slip → acknowledge what was built, not what was lost. If slip_count >= 3 this week → gently name the pattern, ask one open question. Always end on open future. Output JSON only.",
+      "examples": [
+        { "data": "leave habit, streak was 9, slip", "output": { "title": "Mirror", "body": "Nine days you held. That's still true." } },
+        { "data": "quantifiable, 3 vs 7 yesterday", "output": { "title": "Today", "body": "3 today, 7 yesterday. The direction can shift tomorrow." } },
+        { "data": "leave habit, 3 slips this week", "output": { "title": "Mirror", "body": "Three times this week. Something's harder lately. What is it?" } },
+        { "data": "start habit, streak was 1, slip", "output": { "title": "Tomorrow", "body": "Day 1 again. First ones always count most." } }
+      ]
+    },
+
+    "re_entry_after_absence": {
+      "when": "User opens app after 3+ days away",
+      "user_message": "User is back after {{days_away}} days. Their strongest habit before leaving: {{top_habit_name}} at Day {{top_streak}}, started {{creation_date}}. Total habits: {{habit_count}}. Generate a re-entry message: warm, no guilt, no reference to what was missed. Acknowledge the return only. One message for the dashboard, not a notification. Output JSON only.",
+      "examples": [
+        { "data": "4 days away", "output": { "title": "You're back.", "body": "4 days — and you came back anyway. Pick one habit. Just one." } },
+        { "data": "7 days away", "output": { "title": "You're back.", "body": "The habits waited. Start anywhere." } }
+      ]
+    },
+
+    "morning_anchor_leave_habit": {
+      "when": "Every morning at day_start_time for leave habits ONLY. Non-negotiable send.",
+      "user_message": "Habit: {{habit_name}}. Intent: LEAVE. Streak: {{streak}}. Addiction level: {{addiction_level}}. origin_anchor: {{origin_anchor}}. Time: morning. consecutive_good_days: {{consecutive_good_days}}. Recent messages to avoid: {{recent_messages}}. Generate a morning anchor: short, grounding, identity-based. If origin_anchor exists: 50% chance use it as the body with title 'You wrote this.' If streak = 0 → Day 1 energy. If streak > 0 → witness what they've held. Never motivational. Just present. Output JSON only.",
+      "examples": [
+        { "data": "streak=6, morning", "output": { "title": "Day 6", "body": "Morning. Six days clean." } },
+        { "data": "streak=0, morning", "output": { "title": "Day 1", "body": "Morning. Today is where it starts." } },
+        { "data": "origin_anchor='my daughter'", "output": { "title": "You wrote this.", "body": "my daughter" } },
+        { "data": "streak=15, morning", "output": { "title": "Day 15", "body": "Morning. The version of you from 15 days ago would be proud." } }
+      ]
+    },
+
+    "vulnerability_window": {
+      "when": "90 minutes before user's historically most common slip hour",
+      "user_message": "Habit: {{habit_name}}. Intent: LEAVE. Current hour: {{hour}}. Streak: {{streak}}. Addiction level: {{addiction_level}}. Historical slip hour: {{historical_slip_hour}}. Recent messages to avoid: {{recent_messages}}. Generate a vulnerability window check-in: acknowledge the time without naming the craving. Options: (a) urge surfing — the pull peaks in 90 seconds; (b) quiet presence — just 'this hour'; (c) redirect — name a replacement behavior pattern if available from {{replacement_behaviors}}. No pressure. No shame. Just presence. Output JSON only.",
+      "examples": [
+        { "data": "vulnerability window, 11pm", "output": { "title": "Right now", "body": "The pull peaks in 90 seconds. Can you wait?" } },
+        { "data": "vulnerability window, has replacement 'walked'", "output": { "title": "11pm", "body": "Your good days: you usually walk at this hour." } },
+        { "data": "vulnerability window, streak=6", "output": { "title": "Mirror", "body": "Six days. This hour has passed before." } }
+      ]
+    },
+
+    "end_of_day_incomplete": {
+      "when": "30 minutes before day_end_time, habit not yet logged",
+      "user_message": "Habit: {{habit_name}}. Intent: {{intent}}. Streak: {{streak}}. If quantifiable: today_count={{today_count}}, daily_goal={{daily_goal}}, unit={{unit}}, percent_complete={{percent_complete}}. Time: evening. Recent messages to avoid: {{recent_messages}}. Generate end-of-day message: gentle, not guilt-inducing. If quantifiable and > 50% done → proximity energy. If quantifiable and < 50% → ask how the day went, partial counts. If leave habit → check-in, not reminder. If start habit → one last chance energy. Output JSON only.",
+      "examples": [
+        { "data": "water, 7/10, 70%", "output": { "title": "7 of 10", "body": "Three left before the day closes." } },
+        { "data": "water, 3/10, 30%", "output": { "title": "Today", "body": "3 glasses today. Log what happened — partial counts." } },
+        { "data": "leave habit, end of day", "output": { "title": "End of day", "body": "How did today hold up? Tap to log." } },
+        { "data": "start habit, not logged", "output": { "title": "Still today", "body": "Last window. Tomorrow the streak is 1." } }
+      ]
+    }
+  },
+
+  "implementation": {
+    "file": "src/lib/ai/notifications.ts",
+
+    "universal_function": {
+      "name": "generateNotification",
+      "signature": "async function generateNotification(type: NotificationType, data: HabitNotificationData): Promise<{title: string, body: string} | null>",
+      "logic": [
+        "1. Select the correct prompt_template based on type",
+        "2. Inject all available data fields into the user_message template",
+        "3. Add recent_messages from notification_conversations table (last 5 for this habit)",
+        "4. Call Groq with system_prompt + user_message",
+        "5. Parse JSON response",
+        "6. Validate: if body > 10 words or title > 5 words → regenerate once",
+        "7. Check body not in recent_messages → if match → regenerate once",
+        "8. Return { title, body } or null (for 20% silence cases on non-slip, non-leave habits)"
+      ]
+    },
+
+    "silence_logic": {
+      "description": "20% of check-in responses for start habits get silence. Never silence leave habits in vulnerability window. Never silence slips.",
+      "code": "const shouldSilence = intent === 'start' && status === 'done' && Math.random() < 0.2 && !isVulnerabilityHour && status !== 'honest_slip'"
+    },
+
+    "data_fetch_query": {
+      "description": "Single Supabase query to get all notification context for a habit",
+      "query": "SELECT h.*, p.day_start_time, p.day_end_time, (SELECT COUNT(*) FROM check_ins WHERE habit_id = h.id AND status = 'honest_slip' AND date >= NOW() - INTERVAL '7 days') as slip_count_7d, (SELECT MAX(current_streak) FROM habits WHERE id = h.id) as best_streak, (SELECT json_agg(body ORDER BY sent_at DESC) FROM notification_conversations WHERE habit_id = h.id ORDER BY sent_at DESC LIMIT 5) as recent_messages FROM habits h JOIN profiles p ON h.user_id = p.id WHERE h.id = $1"
+    }
+  },
+
+  "groq_call_config": {
+    "model": "llama-3.3-70b-versatile",
+    "max_tokens": 60,
+    "temperature": 0.9,
+    "note": "High temperature (0.9) is intentional — creates variability so messages never feel repetitive. The JSON output format constraint keeps it structured despite high temp.",
+    "response_format": "{ type: 'json_object' }",
+    "retry_on_invalid_json": 1
+  }
+}

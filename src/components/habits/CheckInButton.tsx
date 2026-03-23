@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Check, Moon } from 'lucide-react'
+import { Check, Moon, X } from 'lucide-react'
 import type { CheckInStatus, CategoryId } from '@/types'
 import { CHECK_IN_LABELS } from '@/types'
 
@@ -149,8 +149,15 @@ export default function CheckInButton({
 
       {/* Quantifiable input modal */}
       {showQuantifiable && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-card shadow-hover max-w-sm w-full p-5">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowQuantifiable(false)}>
+          <div className="bg-white rounded-card shadow-hover max-w-sm w-full p-5 relative" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setShowQuantifiable(false)}
+              className="absolute top-3 right-3 w-8 h-8 rounded-full hover:bg-surface flex items-center justify-center transition-colors"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4 text-muted" />
+            </button>
             <h3 className="font-semibold text-brand mb-2">{habitName}</h3>
             <p className="text-sm text-muted mb-4">Add details (optional)</p>
             

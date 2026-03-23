@@ -51,6 +51,8 @@ export default function HabitCard({ habit, onStatusChange, showLink = true }: Ha
   function handleQuickLog(e: React.MouseEvent, newStatus: CheckInStatus) {
     e.preventDefault()
     e.stopPropagation()
+    // Don't allow re-logging if already logged today
+    if (habit.today_status !== null) return
     onStatusChange?.(habit.id, newStatus)
   }
 
@@ -124,10 +126,15 @@ export default function HabitCard({ habit, onStatusChange, showLink = true }: Ha
       {/* Status button */}
       <button
         onClick={(e) => handleQuickLog(e, status === 'done' ? 'skip' : 'done')}
-        className={`w-9 h-9 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-150 active:scale-95 hover:scale-105 ${
+        disabled={habit.today_status !== null}
+        className={`w-9 h-9 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-150 ${
+          habit.today_status !== null 
+            ? 'opacity-40 cursor-not-allowed' 
+            : 'active:scale-95 hover:scale-105'
+        } ${
           status ? STATUS_BUTTON_CLASSES[status] : STATUS_BUTTON_CLASSES.default
         }`}
-        aria-label={status === 'done' ? 'Mark as not done' : 'Mark as done'}
+        aria-label={habit.today_status !== null ? 'Already logged today' : status === 'done' ? 'Mark as not done' : 'Mark as done'}
       >
         {status === 'done' && <Check className="w-4 h-4" />}
         {status === 'partial' && (
