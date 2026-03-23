@@ -1,7 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
-import { Check, Moon } from 'lucide-react'
+import { Check, Moon, Plus } from 'lucide-react'
 import type { HabitWithStatus, CheckInStatus } from '@/types'
 import { getCategoryColor, formatStreakLabel } from '@/lib/utils'
 import { shouldShowForgiveness } from '@/lib/streak'
@@ -9,6 +10,7 @@ import { shouldShowForgiveness } from '@/lib/streak'
 interface HabitCardProps {
   habit: HabitWithStatus
   onStatusChange?: (habitId: string, status: CheckInStatus) => void
+  onQuantityAdd?: (habitId: string, quantity: number) => Promise<void>
   showLink?: boolean
 }
 
@@ -20,7 +22,10 @@ const STATUS_BUTTON_CLASSES: Record<string, string> = {
   default: 'border-brand/15 hover:border-accent',
 }
 
-export default function HabitCard({ habit, onStatusChange, showLink = true }: HabitCardProps) {
+export default function HabitCard({ habit, onStatusChange, onQuantityAdd, showLink = true }: HabitCardProps) {
+  const [showQuantityInput, setShowQuantityInput] = useState(false)
+  const [quantityValue, setQuantityValue] = useState('')
+  const [isAdding, setIsAdding] = useState(false)
   const iconBg = getCategoryColor(habit.category_id)
   const status = habit.today_status
   
@@ -55,6 +60,68 @@ export default function HabitCard({ habit, onStatusChange, showLink = true }: Ha
     if (habit.today_status !== null) return
     onStatusChange?.(habit.id, newStatus)
   }
+
+  async function handleQuantitySubmit(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    const qty = parseFloat(quantityValue)
+    if (isNaN(qty) || qty <= 0) return
+    
+    setIsAdding(true)
+    try {
+      await onQuantityAdd?.(habit.id, qty)
+      setQuantityValue('')
+      setShowQuantityInput(false)
+    } finally {
+      setIsAdding(false)
+    }
+  }
+
+  function handleUpdateState(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setShowQuantityInput(true)
+  }
+
+  function handleMarkComplete(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    onStatusChange?.(habit.id, 'done')
+  }
+
+  // Calculate progress for different habit types
+  const getProgress = () => {
+    // Time-based progress for leave habits (intent='leave')
+    if (habit.intent === 'leave') {
+      const now = new Date()
+      const hours = now.getHours()
+      const minutes = now.getMinutes()
+      const currentMinutes = hours * 60 + minutes
+      
+      // Assume day is 6am to 10pm (16 hours)
+      const dayStart = 6 * 60 // 6am in minutes
+      const dayEnd = 22 * 60 // 10pm in minutes
+      const dayLength = dayEnd - dayStart
+      
+      const progress = Math.max(0, Math.min(100, ((currentMinutes - dayStart) / dayLength) * 100))
+      return { percent: progress, type: 'time' as const }
+    }
+    
+    // Target-based progress for quantifiable habits
+    if (habit.goal_value) {
+      const todayTotal = habit.check_ins
+        ?.filter(c => c.date === new Date().toISOString().split('T')[0])
+        .reduce((sum, c) => sum + (c.quantity || 0), 0) || 0
+      const percent = Math.min(100, (todayTotal / habit.goal_value) * 100)
+      return { percent, type: 'target' as const, current: todayTotal, goal: habit.goal_value }
+    }
+    
+    return null
+  }
+
+  const progress = getProgress()
+  const isQuantifiable = habit.goal_value !== null && habit.goal_value !== undefined
+  const isLeaveHabit = habit.intent === 'leave'
 
   const content = (
     <div className={`bg-white ${cardBorder} ${getCategoryBorderColor()} border-l-[3px] ${streakBg} rounded-card p-4 flex items-center gap-3 hover:shadow-hover transition-all duration-200 group`}>
@@ -123,30 +190,134 @@ export default function HabitCard({ habit, onStatusChange, showLink = true }: Ha
         </div>
       )}
 
-      {/* Status button */}
-      <button
-        onClick={(e) => handleQuickLog(e, status === 'done' ? 'skip' : 'done')}
-        disabled={habit.today_status !== null}
-        className={`w-9 h-9 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-150 ${
-          habit.today_status !== null 
-            ? 'opacity-40 cursor-not-allowed' 
-            : 'active:scale-95 hover:scale-105'
-        } ${
-          status ? STATUS_BUTTON_CLASSES[status] : STATUS_BUTTON_CLASSES.default
-        }`}
-        aria-label={habit.today_status !== null ? 'Already logged today' : status === 'done' ? 'Mark as not done' : 'Mark as done'}
-      >
-        {status === 'done' && <Check className="w-4 h-4" />}
-        {status === 'partial' && (
-          <div
-            className="w-5 h-5 rounded-full"
-            style={{
-              background: 'linear-gradient(135deg, #0D9E75 50%, white 50%)',
-            }}
-          />
+      {/* Progress button with circular indicator */}
+      <div className="relative flex-shrink-0">
+        {progress ? (
+          <div className="relative w-9 h-9">
+            {/* Background circle */}
+            <svg className="w-9 h-9 transform -rotate-90" viewBox="0 0 36 36">
+              <circle
+                cx="18"
+                cy="18"
+                r="16"
+                fill="none"
+                stroke="#E5E7EB"
+                strokeWidth="2"
+              />
+              {/* Progress circle */}
+              <circle
+                cx="18"
+                cy="18"
+                r="16"
+                fill="none"
+                stroke={status === 'done' ? '#0D9E75' : status === 'honest_slip' ? '#F59E0B' : '#6366F1'}
+                strokeWidth="2"
+                strokeDasharray={`${(progress.percent / 100) * 100.53} 100.53`}
+                strokeLinecap="round"
+              />
+            </svg>
+            {/* Center button */}
+            <button
+              onClick={(e) => {
+                if (isQuantifiable && !status) {
+                  handleUpdateState(e)
+                } else if (isLeaveHabit) {
+                  handleQuickLog(e, status === 'done' ? 'skip' : 'done')
+                } else {
+                  handleQuickLog(e, status === 'done' ? 'skip' : 'done')
+                }
+              }}
+              disabled={habit.today_status !== null && !isQuantifiable}
+              className="absolute inset-0 flex items-center justify-center rounded-full hover:bg-gray-50 transition-colors"
+            >
+              {status === 'done' ? (
+                <Check className="w-4 h-4 text-success" />
+              ) : status === 'honest_slip' ? (
+                <span className="text-sm text-amber-600">~</span>
+              ) : isQuantifiable ? (
+                <Plus className="w-4 h-4 text-brand" />
+              ) : (
+                <span className="text-[10px] font-mono font-bold text-brand">{Math.round(progress.percent)}%</span>
+              )}
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={(e) => handleQuickLog(e, status === 'done' ? 'skip' : 'done')}
+            disabled={habit.today_status !== null}
+            className={`w-9 h-9 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-150 ${
+              habit.today_status !== null 
+                ? 'opacity-40 cursor-not-allowed' 
+                : 'active:scale-95 hover:scale-105'
+            } ${
+              status ? STATUS_BUTTON_CLASSES[status] : STATUS_BUTTON_CLASSES.default
+            }`}
+            aria-label={habit.today_status !== null ? 'Already logged today' : status === 'done' ? 'Mark as not done' : 'Mark as done'}
+          >
+            {status === 'done' && <Check className="w-4 h-4" />}
+            {status === 'partial' && (
+              <div
+                className="w-5 h-5 rounded-full"
+                style={{
+                  background: 'linear-gradient(135deg, #0D9E75 50%, white 50%)',
+                }}
+              />
+            )}
+            {status === 'honest_slip' && <span className="text-sm">~</span>}
+          </button>
         )}
-        {status === 'honest_slip' && <span className="text-sm">~</span>}
-      </button>
+      </div>
+
+      {/* Quantity input modal */}
+      {showQuantityInput && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            setShowQuantityInput(false)
+          }}
+        >
+          <div 
+            className="bg-white rounded-card shadow-hover max-w-sm w-full p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-semibold text-brand mb-2">{habit.name}</h3>
+            <p className="text-sm text-muted mb-4">
+              {progress?.type === 'target' && `${progress.current}/${progress.goal} ${habit.goal_unit || 'done'}`}
+            </p>
+            <input
+              type="number"
+              value={quantityValue}
+              onChange={(e) => setQuantityValue(e.target.value)}
+              placeholder="Enter amount"
+              className="w-full px-3 py-2 border border-border rounded-btn focus:outline-none focus:ring-2 focus:ring-accent mb-3"
+              autoFocus
+              min="0"
+              step="0.5"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={handleQuantitySubmit}
+                disabled={isAdding || !quantityValue}
+                className="flex-1 mirror-btn-primary disabled:opacity-50"
+              >
+                {isAdding ? 'Adding...' : 'Add'}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setShowQuantityInput(false)
+                }}
+                className="flex-1 mirror-btn-secondary"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 
