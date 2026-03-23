@@ -7,8 +7,8 @@ export const dynamic = 'force-dynamic'
 
 /**
  * Morning Motivation Cron Job
- * Runs every hour, sends morning anchor messages to users with leave habits
- * at their day_start_time
+ * Runs daily at 6am UTC (Vercel Hobby plan limitation)
+ * Sends morning anchor messages to users with leave habits based on their timezone
  */
 export async function GET(request: Request) {
   try {
@@ -20,17 +20,6 @@ export async function GET(request: Request) {
 
     const supabase = createClient()
     const now = new Date()
-    const currentHour = now.getHours()
-    const currentMinute = now.getMinutes()
-
-    // Only send within first 30 minutes of each hour
-    if (currentMinute > 30) {
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Outside send window',
-        sent: 0 
-      })
-    }
 
     // Get all active leave habits with their profiles
     const { data: habits, error: habitsError } = await supabase
@@ -40,7 +29,8 @@ export async function GET(request: Request) {
         profiles!inner(
           id,
           day_start_time,
-          day_end_time
+          day_end_time,
+          timezone
         )
       `)
       .eq('intent', 'leave')
@@ -61,13 +51,21 @@ export async function GET(request: Request) {
       const profile = habit.profiles
       if (!profile) continue
 
+      // Calculate user's local time based on timezone
+      const userTimezone = profile.timezone || 'UTC'
+      const userLocalTime = new Date(now.toLocaleString('en-US', { timeZone: userTimezone }))
+      const userHour = userLocalTime.getHours()
+      const userMinute = userLocalTime.getMinutes()
+
       // Parse day start time
       const [startHour, startMin] = (profile.day_start_time || '06:00')
         .split(':')
         .map(Number)
 
-      // Check if current hour matches user's day start hour
-      if (currentHour !== startHour) continue
+      // Send if within 1 hour of user's day start time
+      // This gives us a window since we only run once per day
+      const hourDiff = Math.abs(userHour - startHour)
+      if (hourDiff > 1) continue
 
       // Get habit check-ins for context
       const { data: checkIns } = await supabase
