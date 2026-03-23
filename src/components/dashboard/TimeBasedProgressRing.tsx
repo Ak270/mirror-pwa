@@ -4,21 +4,25 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 
 interface TimeBasedProgressRingProps {
+  habitId: string
   habitName: string
   habitIcon: string
   dayStartTime: string // "05:00"
   dayEndTime: string // "22:00"
   currentTime?: Date
   lastCheckInStatus: 'held_on' | 'had_moment' | null
+  onClick?: () => void
 }
 
 export default function TimeBasedProgressRing({
+  habitId,
   habitName,
   habitIcon,
   dayStartTime,
   dayEndTime,
   currentTime = new Date(),
-  lastCheckInStatus
+  lastCheckInStatus,
+  onClick
 }: TimeBasedProgressRingProps) {
   const [timeProgress, setTimeProgress] = useState(0)
   const [hoursRemaining, setHoursRemaining] = useState(0)
@@ -110,7 +114,11 @@ export default function TimeBasedProgressRing({
   const strokeDashoffset = circumference - (timeProgress / 100) * circumference
 
   return (
-    <div className="flex flex-col items-center justify-center py-6">
+    <button 
+      onClick={onClick}
+      className="flex flex-col items-center justify-center py-6 w-full hover:bg-surface/50 rounded-card transition-colors cursor-pointer"
+      disabled={lastCheckInStatus !== null}
+    >
       {/* SVG Ring */}
       <div className="relative">
         <svg width="180" height="180" className="transform -rotate-90">
@@ -162,6 +170,6 @@ export default function TimeBasedProgressRing({
           {hoursRemaining}h {Math.floor((hoursRemaining % 1) * 60)}m until day reset
         </p>
       </div>
-    </div>
+    </button>
   )
 }
